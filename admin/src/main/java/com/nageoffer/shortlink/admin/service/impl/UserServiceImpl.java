@@ -1,5 +1,7 @@
 package com.nageoffer.shortlink.admin.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.admin.common.constants.UserCacheConstants;
 import com.nageoffer.shortlink.admin.common.convention.exception.ClientException;
@@ -7,6 +9,7 @@ import com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum;
 import com.nageoffer.shortlink.admin.dao.entity.UserDO;
 import com.nageoffer.shortlink.admin.dao.mapper.UserMapper;
 import com.nageoffer.shortlink.admin.dto.req.UserRegisterReqDTO;
+import com.nageoffer.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.ActualUserRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
@@ -67,5 +70,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    public void updateUser(UserUpdateReqDTO requestParams) {
+        // todo 根据token判断用户登录,判断是否更改的是自己的信息
+
+        LambdaUpdateWrapper<UserDO> updateWrapper = Wrappers.lambdaUpdate(UserDO.class)
+                    .eq(UserDO::getUsername, requestParams.getUsername());
+        baseMapper.update(BeanUtil.convert(requestParams,UserDO.class),updateWrapper);
     }
 }
