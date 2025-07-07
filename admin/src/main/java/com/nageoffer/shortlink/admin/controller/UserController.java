@@ -3,9 +3,11 @@ package com.nageoffer.shortlink.admin.controller;
 
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.common.convention.result.Results;
+import com.nageoffer.shortlink.admin.dto.req.UserLoginReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.UserRegisterReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.ActualUserRespDTO;
+import com.nageoffer.shortlink.admin.dto.resp.UserLoginRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +45,22 @@ public class UserController {
     @PutMapping
     public Result<Void> updateUser(@RequestBody UserUpdateReqDTO requestParams){
         userService.updateUser(requestParams);
+        return Results.success();
+    }
+
+    @PostMapping("/login")
+    public Result<UserLoginRespDTO> login(@RequestBody UserLoginReqDTO requestParams){
+        return Results.success(userService.login(requestParams));
+    }
+
+    @GetMapping("/check-login")
+    public Result<Boolean> checkLogin(@RequestParam String username,@RequestParam String token){
+        return Results.success(userService.checkLogin(username,token));
+    }
+
+    @DeleteMapping("/logout")
+    public Result<Void> logout(@RequestParam String username,@RequestParam String token){
+        userService.logout(username,token);
         return Results.success();
     }
 }
