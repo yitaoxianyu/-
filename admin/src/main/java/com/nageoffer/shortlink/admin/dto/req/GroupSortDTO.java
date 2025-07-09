@@ -1,0 +1,12 @@
+package com.nageoffer.shortlink.admin.dto.req;
+
+import lombok.Data;
+
+@Data
+public class GroupSortDTO {
+
+    private String gid;
+
+    private Integer sortOrder;
+
+}

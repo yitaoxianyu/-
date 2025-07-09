@@ -107,7 +107,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         Map<Object, Object> map = stringRedisTemplate.opsForHash().entries(USER_LOGIN + requestParams.getUsername());
         if (CollUtil.isNotEmpty(map)) {
-            stringRedisTemplate.expire(USER_LOGIN + requestParams.getUsername(),30,TimeUnit.MINUTES);
+            stringRedisTemplate.expire(USER_LOGIN + requestParams.getUsername(),30,TimeUnit.DAYS);
             String token = map.keySet().stream()
                     .findFirst()
                     .map(Object::toString)
@@ -119,7 +119,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         String token = UUID.randomUUID().toString();
         stringRedisTemplate.opsForHash().put(USER_LOGIN + requestParams.getUsername(),
                  token,JSONObject.toJSONString(userDO));
-        stringRedisTemplate.expire(USER_LOGIN + requestParams.getUsername(),30, TimeUnit.MINUTES);
+        stringRedisTemplate.expire(USER_LOGIN + requestParams.getUsername(),30, TimeUnit.DAYS);
 
         return new UserLoginRespDTO(token);
     }
