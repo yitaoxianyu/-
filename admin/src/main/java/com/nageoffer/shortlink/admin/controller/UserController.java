@@ -13,6 +13,8 @@ import com.nageoffer.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Stack;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/short-link/admin/v1/user")
@@ -60,6 +62,7 @@ public class UserController {
 
     @DeleteMapping("/logout")
     public Result<Void> logout(@RequestParam String username,@RequestParam String token){
+        Stack stk = new Stack();
         userService.logout(username,token);
         return Results.success();
     }
