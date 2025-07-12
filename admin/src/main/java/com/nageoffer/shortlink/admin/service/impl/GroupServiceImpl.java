@@ -22,19 +22,19 @@ import java.util.List;
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
 
     @Override
-    public void saveGroup(String groupName) {
+    public void saveGroup(String name) {
         String gid;
         do{
             gid = RandomGenerator.generateRandom();
             GroupDO groupDO = lambdaQuery()
                     .eq(GroupDO::getGid, gid)
-                    .eq(GroupDO::getName,groupName)
+                    .eq(GroupDO::getName,name)
                     .eq(GroupDO::getUsername, UserContext.getUsername()).one();
             if(groupDO == null) break;
         }while(true);
 
         GroupDO groupDO = GroupDO.builder()
-                .gid(gid).username(UserContext.getUsername()).sortOrder(0).name(groupName)
+                .gid(gid).username(UserContext.getUsername()).sortOrder(0).name(name)
                 .build();
         save(groupDO);
     }

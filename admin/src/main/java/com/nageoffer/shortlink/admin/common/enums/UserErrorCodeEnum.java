@@ -25,6 +25,8 @@ import com.nageoffer.shortlink.admin.common.convention.errorcode.IErrorCode;
  */
 public enum UserErrorCodeEnum implements IErrorCode {
 
+    REQUIRE_AUTH("B000101","用户未登录"),
+
     USER_NULL("B000200", "用户记录不存在"),
 
     USER_NAME_EXIST("B000201", "用户名已存在"),

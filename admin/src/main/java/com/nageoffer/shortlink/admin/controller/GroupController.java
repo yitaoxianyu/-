@@ -2,6 +2,7 @@ package com.nageoffer.shortlink.admin.controller;
 
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.common.convention.result.Results;
+import com.nageoffer.shortlink.admin.dto.req.GroupReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.GroupSortDTO;
 import com.nageoffer.shortlink.admin.dto.req.GroupUpdateReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.GroupRespDTO;
@@ -19,8 +20,8 @@ public class GroupController {
     private final GroupService groupService;
 
     @PostMapping
-    public Result<Void> saveGroup(@RequestParam String groupName){
-        groupService.saveGroup(groupName);
+    public Result<Void> saveGroup(@RequestBody GroupReqDTO requestParams){
+        groupService.saveGroup(requestParams.getName());
         return Results.success();
     }
 

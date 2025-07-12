@@ -2,7 +2,6 @@ package com.nageoffer.shortlink.admin.common.convention.exception;
 
 import com.nageoffer.shortlink.admin.common.convention.errorcode.IErrorCode;
 import lombok.Getter;
-import org.springframework.util.StringUtils;
 
 import java.util.Optional;
 
@@ -16,7 +15,7 @@ public abstract class AbstractException extends RuntimeException{
     public AbstractException(String message, Throwable cause, IErrorCode errorCode) {
         super(message, cause);
         this.errorCode = errorCode.code();
-        this.errorMessage = Optional.ofNullable(StringUtils.hasLength(message) ? message : null)
+        this.errorMessage = Optional.ofNullable(message)
                 .orElse(errorCode.message());
     }
 }
