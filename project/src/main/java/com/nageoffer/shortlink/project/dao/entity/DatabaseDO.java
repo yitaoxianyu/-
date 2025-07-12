@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.project.dto;
+package com.nageoffer.shortlink.project.dao.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.TableField;

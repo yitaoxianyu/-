@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.admin.common.web;
+package com.nageoffer.shortlink.admin.configuration;
 
 import com.baomidou.mybatisplus.core.handlers.MetaObjectHandler;
 import org.apache.ibatis.reflection.MetaObject;

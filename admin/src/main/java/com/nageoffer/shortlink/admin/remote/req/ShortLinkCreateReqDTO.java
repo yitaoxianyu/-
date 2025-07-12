@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.project.dto.req;
+package com.nageoffer.shortlink.admin.remote.req;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
@@ -53,7 +53,5 @@ public class ShortLinkCreateReqDTO {
      */
 
     private String describe;
-
-    private String favicon;
 
 }
