@@ -1,5 +1,6 @@
 package com.nageoffer.shortlink.admin.dao.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.*;
 
@@ -46,5 +47,7 @@ public class GroupDO extends DatabaseDO implements Serializable{
      */
     private Integer sortOrder;
 
+    @TableField(exist = false)
+    private Integer shortLinkCount;
 
 }

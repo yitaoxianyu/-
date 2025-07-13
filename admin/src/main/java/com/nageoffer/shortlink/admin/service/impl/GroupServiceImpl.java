@@ -11,15 +11,20 @@ import com.nageoffer.shortlink.admin.dao.mapper.GroupMapper;
 import com.nageoffer.shortlink.admin.dto.req.GroupSortDTO;
 import com.nageoffer.shortlink.admin.dto.req.GroupUpdateReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.GroupRespDTO;
+import com.nageoffer.shortlink.admin.remote.ShortLinkService;
+import com.nageoffer.shortlink.admin.remote.resp.ShortLinkQueryCountRespDTO;
 import com.nageoffer.shortlink.admin.service.GroupService;
 import com.nageoffer.shortlink.admin.util.BeanUtil;
 import com.nageoffer.shortlink.admin.util.RandomGenerator;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
+
+    private static final ShortLinkService shortLinkService = new ShortLinkService() {};
 
     @Override
     public void saveGroup(String name) {
@@ -46,7 +51,19 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
                         .orderByDesc(GroupDO::getSortOrder,GroupDO::getUpdateTime);
 
         List<GroupDO> groupDOS = baseMapper.selectList(wrapper);
-        return BeanUtil.convert(groupDOS, GroupRespDTO.class);
+
+        //查询每个分组的短链数量
+        List<String> gids = groupDOS.stream().map(GroupDO::getGid).toList();
+        List<ShortLinkQueryCountRespDTO> countList = shortLinkService.queryShortLinkCount(gids).getData();
+
+        groupDOS.forEach(group -> {
+            countList.stream()
+                    .filter(item -> Objects.equals(item.getGid(), group.getGid()))
+                    .findFirst()
+                    .ifPresent(item -> cn.hutool.core.bean.BeanUtil.copyProperties(item,group));
+        });
+
+            return BeanUtil.convert(groupDOS, GroupRespDTO.class);
     }
 
     @Override

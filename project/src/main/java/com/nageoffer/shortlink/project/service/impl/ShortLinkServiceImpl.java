@@ -1,7 +1,7 @@
 package com.nageoffer.shortlink.project.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -12,6 +12,7 @@ import com.nageoffer.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkPageRespDTO;
+import com.nageoffer.shortlink.project.dto.resp.ShortLinkQueryCountDTO;
 import com.nageoffer.shortlink.project.service.ShortLinkService;
 import com.nageoffer.shortlink.project.util.BeanUtil;
 import com.nageoffer.shortlink.project.util.HashUtil;
@@ -20,12 +21,13 @@ import org.redisson.api.RBloomFilter;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLinkDO> implements ShortLinkService {
 
     private final RBloomFilter<String> shortUriCreateBloomFilter;
-    private final BaseMapper baseMapper;
 
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParams) {
@@ -66,9 +68,23 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .convert(item -> BeanUtil.convert(item, ShortLinkPageRespDTO.class));
     }
 
+    @Override
+    public List<ShortLinkQueryCountDTO> queryShortLinkCount(List<String> requestParams) {
+        QueryWrapper<ShortLinkDO> wrapper = new QueryWrapper<ShortLinkDO>()
+                .select("gid,count(*) as shortLinkCount")
+                .eq("enable_status", 1)
+                .eq("del_flag", 0)
+                .in("gid", requestParams)
+                .groupBy("gid");
+
+
+        return  baseMapper.selectMaps(wrapper).stream().
+                map(item -> BeanUtil.convert(item, ShortLinkQueryCountDTO.class))
+                .toList();
+    }
     private String generateSuffix(ShortLinkCreateReqDTO requestParams){
         int count = 0;
-        String suffix = null;
+        String suffix;
         while(true){
             if(count == 10) throw new ServiceException("短链接创建繁忙");
             suffix = HashUtil.hashToBase62(requestParams.getOriginUrl() + System.currentTimeMillis());

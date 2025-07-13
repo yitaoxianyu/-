@@ -10,8 +10,10 @@ import com.nageoffer.shortlink.admin.remote.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.admin.remote.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkCreateRespDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkPageRespDTO;
+import com.nageoffer.shortlink.admin.remote.resp.ShortLinkQueryCountRespDTO;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public interface ShortLinkService {
@@ -34,4 +36,11 @@ public interface ShortLinkService {
         return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
     }
 
+    default Result<List<ShortLinkQueryCountRespDTO>> queryShortLinkCount(List<String> requestParams) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("requestParams",requestParams);
+
+        String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/count", map);
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
+    }
 }
