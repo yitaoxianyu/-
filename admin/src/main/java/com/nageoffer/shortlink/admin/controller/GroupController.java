@@ -1,5 +1,6 @@
 package com.nageoffer.shortlink.admin.controller;
 
+import com.nageoffer.shortlink.admin.common.biz.user.UserContext;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.common.convention.result.Results;
 import com.nageoffer.shortlink.admin.dto.req.GroupReqDTO;
@@ -21,7 +22,7 @@ public class GroupController {
 
     @PostMapping
     public Result<Void> saveGroup(@RequestBody GroupReqDTO requestParams){
-        groupService.saveGroup(requestParams.getName());
+        groupService.saveGroup(requestParams.getName(), UserContext.getUsername());
         return Results.success();
     }
 

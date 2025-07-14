@@ -27,20 +27,22 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
     private static final ShortLinkService shortLinkService = new ShortLinkService() {};
 
     @Override
-    public void saveGroup(String name) {
+    public void saveGroup(String name, String username) {
         String gid;
         do{
             gid = RandomGenerator.generateRandom();
             GroupDO groupDO = lambdaQuery()
                     .eq(GroupDO::getGid, gid)
                     .eq(GroupDO::getName,name)
-                    .eq(GroupDO::getUsername, UserContext.getUsername()).one();
+                    .eq(GroupDO::getUsername, username).one();
             if(groupDO == null) break;
         }while(true);
 
         GroupDO groupDO = GroupDO.builder()
-                .gid(gid).username(UserContext.getUsername()).sortOrder(0).name(name)
-                .build();
+                .gid(gid)
+                .username(username)
+                .sortOrder(0)
+                .name(name).build();
         save(groupDO);
     }
 

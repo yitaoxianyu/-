@@ -16,6 +16,7 @@ import com.nageoffer.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.ActualUserRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.UserLoginRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
+import com.nageoffer.shortlink.admin.service.GroupService;
 import com.nageoffer.shortlink.admin.service.UserService;
 import com.nageoffer.shortlink.admin.util.BeanUtil;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     private final RedissonClient redissonClient;
 
     private final StringRedisTemplate stringRedisTemplate;
+
+    private final GroupService groupService;
 
     @Override
     @SneakyThrows
@@ -80,7 +83,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         try{
             int insert = baseMapper.insert(BeanUtil.convert(requestParams, UserDO.class));
             if(insert < 1) throw new ClientException(USER_SAVE_ERROR);
-
+            //给用户添加一个默认分组
+            groupService.saveGroup("默认分组",username);
             userRegisterCachePenetrationBloomFilter.add(username);
         }finally {
             lock.unlock();

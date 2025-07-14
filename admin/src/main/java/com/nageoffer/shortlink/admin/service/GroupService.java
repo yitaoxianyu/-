@@ -9,7 +9,7 @@ import com.nageoffer.shortlink.admin.dto.resp.GroupRespDTO;
 import java.util.List;
 
 public interface GroupService extends IService<GroupDO> {
-    void saveGroup(String groupName);
+    void saveGroup(String name, String username);
 
     List<GroupRespDTO> listGroup();
 
