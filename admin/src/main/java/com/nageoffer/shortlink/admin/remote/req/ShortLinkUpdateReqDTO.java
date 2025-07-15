@@ -1,4 +1,4 @@
-package com.nageoffer.shortlink.project.dto.req;
+package com.nageoffer.shortlink.admin.remote.req;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
@@ -7,7 +7,6 @@ import java.util.Date;
 
 @Data
 public class ShortLinkUpdateReqDTO {
-
     private String fullShortUrl;
     /*
     描述
@@ -30,5 +29,4 @@ public class ShortLinkUpdateReqDTO {
      * 有效期类型，0：永久有效 1：自定义
      */
     private Integer validDateType;
-
 }

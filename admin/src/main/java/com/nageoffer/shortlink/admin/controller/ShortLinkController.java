@@ -5,6 +5,7 @@ import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.remote.ShortLinkService;
 import com.nageoffer.shortlink.admin.remote.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.admin.remote.req.ShortLinkPageReqDTO;
+import com.nageoffer.shortlink.admin.remote.req.ShortLinkUpdateReqDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkCreateRespDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkPageRespDTO;
 import org.springframework.web.bind.annotation.*;
@@ -23,5 +24,10 @@ public class ShortLinkController {
     @PostMapping("/create")
     public Result<ShortLinkCreateRespDTO> createShortLink(@RequestBody ShortLinkCreateReqDTO requestParams){
         return shortLinkRemoteService.createShortLink(requestParams);
+    }
+
+    @PostMapping("/update")
+    public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO requestParms){
+        return shortLinkRemoteService.updateShortLink(requestParms);
     }
 }

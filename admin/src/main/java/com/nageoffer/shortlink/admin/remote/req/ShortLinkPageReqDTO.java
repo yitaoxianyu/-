@@ -1,7 +1,7 @@
 package com.nageoffer.shortlink.admin.remote.req;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.nageoffer.shortlink.admin.dao.entity.ShortLinkDO;
+import com.nageoffer.shortlink.admin.remote.entity.ShortLinkDO;
 import lombok.Data;
 
 @Data

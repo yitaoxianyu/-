@@ -26,7 +26,8 @@ public class Test {
                     "  `favicon` varchar(256) COMMENT '短链的图标',\n" +
                     "  PRIMARY KEY (`id`),\n" +
                     "  UNIQUE KEY `idx_unique_full_short_url` (`full_short_url`) USING BTREE\n" +
-                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n",i);
+                    ")" +
+                    " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;\n",i);
         }
     }
 

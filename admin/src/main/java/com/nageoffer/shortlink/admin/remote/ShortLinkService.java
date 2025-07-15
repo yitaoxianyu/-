@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.remote.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.admin.remote.req.ShortLinkPageReqDTO;
+import com.nageoffer.shortlink.admin.remote.req.ShortLinkUpdateReqDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkCreateRespDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkPageRespDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkQueryCountRespDTO;
@@ -41,6 +42,14 @@ public interface ShortLinkService {
         map.put("requestParams",requestParams);
 
         String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/count", map);
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
+    }
+
+    default Result<Void> updateShortLink(ShortLinkUpdateReqDTO requestParms) {
+        String jsonStr = HttpUtil.post(
+                "http://localhost:8002/api/short-link/v1/update",
+                JSONObject.toJSONString(requestParms)
+        );
         return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
     }
 }

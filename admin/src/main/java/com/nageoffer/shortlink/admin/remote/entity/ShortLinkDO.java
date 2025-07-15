@@ -1,7 +1,8 @@
-package com.nageoffer.shortlink.admin.dao.entity;
+package com.nageoffer.shortlink.admin.remote.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.nageoffer.shortlink.admin.dao.entity.DatabaseDO;
 import lombok.Builder;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
