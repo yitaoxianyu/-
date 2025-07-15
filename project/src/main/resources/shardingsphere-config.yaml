@@ -30,11 +30,18 @@ rules:
             # 分片键
             shardingColumn: full_short_url
             # 分片算法，对应 rules[0].shardingAlgorithms
-            shardingAlgorithmName: link_table_hash_mod
+            shardingAlgorithmName: full_short_url_table_hash_mod
     # 分片算法
     shardingAlgorithms:
       # 数据表分片算法
       link_table_hash_mod:
+        # 根据分片键 Hash 分片
+        type: HASH_MOD
+        # 分片数量
+        props:
+          sharding-count: 16
+      # 数据表分片算法
+      full_short_url_table_hash_mod:
         # 根据分片键 Hash 分片
         type: HASH_MOD
         # 分片数量

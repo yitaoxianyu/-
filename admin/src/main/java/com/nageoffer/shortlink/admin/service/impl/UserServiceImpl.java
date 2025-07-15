@@ -31,8 +31,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import static com.nageoffer.shortlink.admin.common.constants.UserCacheConstants.LOCK_USER_REGISTER;
-import static com.nageoffer.shortlink.admin.common.constants.UserCacheConstants.USER_LOGIN;
+import static com.nageoffer.shortlink.admin.common.constants.UserConstants.LOCK_USER_REGISTER;
+import static com.nageoffer.shortlink.admin.common.constants.UserConstants.USER_LOGIN;
 import static com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum.*;
 
 @Service
