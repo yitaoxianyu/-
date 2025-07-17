@@ -10,4 +10,7 @@ public class ShortLinkConstants {
     //用来更新上面 key 缓存的锁的键
     public static final String LOCK_SHORT_LINK_GOTO_KEY = "short-link:goto:lock:%s";
 
+    //单位是秒
+    public static final long DEFAULT_CACHE_VALID_TIME = 2628000;
+
 }

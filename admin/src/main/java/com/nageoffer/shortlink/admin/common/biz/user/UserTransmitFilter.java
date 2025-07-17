@@ -16,7 +16,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.nageoffer.shortlink.admin.common.constants.UserCacheConstants.USER_LOGIN;
+import static com.nageoffer.shortlink.admin.common.constants.UserConstants.USER_LOGIN;
 
 @RequiredArgsConstructor
 public class UserTransmitFilter implements Filter {

@@ -18,7 +18,7 @@ public class ShortLinkController {
 
     @GetMapping("/page")
     public Result<IPage<ShortLinkPageRespDTO>> PageQueryShortLink(ShortLinkPageReqDTO requestParams){
-        return shortLinkRemoteService.PageQueryShortLink(requestParams);
+        return shortLinkRemoteService.pageQueryShortLink(requestParams);
     }
 
     @PostMapping("/create")
@@ -30,4 +30,6 @@ public class ShortLinkController {
     public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO requestParms){
         return shortLinkRemoteService.updateShortLink(requestParms);
     }
+
+
 }

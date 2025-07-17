@@ -49,8 +49,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
     @Override
     public List<GroupRespDTO> listGroup() {
         LambdaQueryWrapper<GroupDO> wrapper = new LambdaQueryWrapper<GroupDO>()
-                .eq(GroupDO::getUsername, UserContext.getUsername()).eq(GroupDO::getDelFlag,0)
-                        .orderByDesc(GroupDO::getSortOrder,GroupDO::getUpdateTime);
+                .eq(GroupDO::getUsername, UserContext.getUsername())
+                .eq(GroupDO::getDelFlag,0)
+                .orderByDesc(GroupDO::getSortOrder,GroupDO::getUpdateTime);
 
         List<GroupDO> groupDOS = baseMapper.selectList(wrapper);
 

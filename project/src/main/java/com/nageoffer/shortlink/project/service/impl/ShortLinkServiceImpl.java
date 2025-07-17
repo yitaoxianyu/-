@@ -21,6 +21,7 @@ import com.nageoffer.shortlink.project.dto.resp.ShortLinkQueryCountDTO;
 import com.nageoffer.shortlink.project.service.ShortLinkService;
 import com.nageoffer.shortlink.project.util.BeanUtil;
 import com.nageoffer.shortlink.project.util.HashUtil;
+import com.nageoffer.shortlink.project.util.LinkUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +35,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import static com.nageoffer.shortlink.project.common.constants.ShortLinkConstants.LOCK_SHORT_LINK_GOTO_KEY;
 import static com.nageoffer.shortlink.project.common.constants.ShortLinkConstants.SHORT_LINK_GOTO_KEY;
@@ -67,7 +70,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .gid(requestParams.getGid())
                 .describe(requestParams.getDescribe())
                 .validDateType(requestParams.getValidDateType())
-                .validDate(requestParams.getValidDate())
+                .validDate(
+                        !Objects.equals(requestParams.getValidDateType(),PERMANENT.getType()) ?
+                                requestParams.getValidDate() : null
+                )
                 .createdType(requestParams.getCreatedType())
                 .enableStatus(1)
                 .favicon(requestParams.getFavicon()).build();
@@ -81,6 +87,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         }catch (DuplicateKeyException ex){
             throw new ServiceException(String.format("短链接%s重复",requestParams.getDomain() + "/" + suffix));
         }
+        stringRedisTemplate.opsForValue().set(
+                String.format(SHORT_LINK_GOTO_KEY,requestParams.getDomain() + "/" + suffix),
+                requestParams.getOriginUrl(),
+                LinkUtil.getLinkCacheValidTime(requestParams.getValidDate()), TimeUnit.SECONDS
+        );
         shortUriCreateBloomFilter.add(requestParams.getDomain() + "/" + suffix);
         return ShortLinkCreateRespDTO.builder()
                 .fullShortUrl("http://" + requestParams.getDomain() + "/" + suffix)
@@ -140,23 +151,29 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .validDateType(requestParms.getValidDateType())
                 .validDate(requestParms.getValidDate())
                 .build();
+        baseMapper.update(shortLinkDO,updateWrapper);
     }
 
     @Override
     @SneakyThrows
     public void restoreUrl(String shortUri, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
-        //跳转表获取 gid
         String fullShortUrl = httpServletRequest.getServerName() + "/" + shortUri;
-        if (!shortUriCreateBloomFilter.contains(fullShortUrl)) {
-            throw new ClientException("短链接不存在");
-        }
-        //此时 fullShortUrl 可能存在误判,查询一下缓存,查的是 originUrl
+        //先去查一下缓存,可能会缓存了一些空对象,或者之前缓存好的数据
         String originUrl = stringRedisTemplate.opsForValue().get(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
         if(originUrl != null) {
+            if(originUrl.equals("-")){
+                httpServletResponse.sendRedirect("/page/notfound");
+                return ;
+            }
             httpServletResponse.sendRedirect(originUrl);
             return ;
         }
-        //缓存中没有,用双重检查锁
+        //缓存没有命中,考虑查询数据库之前使用布隆过滤器判断有没有
+        if (!shortUriCreateBloomFilter.contains(fullShortUrl)) {
+            httpServletResponse.sendRedirect("/page/notfound");
+            return ;
+        }
+        //缓存中没有,用双重检查锁并且布隆过滤器也可能存在误判
         RLock lock = redissonClient.getLock(String.format(LOCK_SHORT_LINK_GOTO_KEY, fullShortUrl));
         lock.lock();
         try{
@@ -173,8 +190,14 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             ShortLinkGotoDO shortLinkGotoInDB = shortLinkGotoMapper.selectOne(shortLinkGotoQueryWrapper);
             if(shortLinkGotoInDB == null){
                 //这里需要缓存一个空对象
-                stringRedisTemplate.opsForValue().set(String.format(SHORT_LINK_GOTO_KEY,fullShortUrl),"-");
-                throw new ClientException("短链接不存在");
+                stringRedisTemplate.opsForValue().set(
+                        String.format(SHORT_LINK_GOTO_KEY,fullShortUrl),
+                        "-",
+                        600,
+                        TimeUnit.SECONDS
+                );
+                httpServletResponse.sendRedirect("/page/notfound");
+                return ;
             }
             String gid = shortLinkGotoInDB.getGid();
             //获取到 gid 再查短链表
@@ -184,15 +207,31 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .eq(ShortLinkDO::getDelFlag,0)
                     .eq(ShortLinkDO::getEnableStatus,1);
             ShortLinkDO shortLinkInDB = baseMapper.selectOne(shortLinkQueryWrapper);
+            //查出来的过期了,或者被禁用了或者不存在
+            if(shortLinkInDB == null || shortLinkInDB.getValidDate().before(new Date())){
+                //缓存一个空对象
+                stringRedisTemplate.opsForValue().set(
+                        String.format(SHORT_LINK_GOTO_KEY,fullShortUrl),
+                        "-",
+                        600,
+                        TimeUnit.SECONDS
+                );
+                httpServletResponse.sendRedirect("/page/notfound");
+                return ;
+            }
             originUrl = shortLinkInDB.getOriginUrl();
             //这里将查到的数据进行缓存
-            stringRedisTemplate.opsForValue().set(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl),originUrl);
+            stringRedisTemplate.opsForValue().set(
+                    String.format(SHORT_LINK_GOTO_KEY, fullShortUrl),
+                    originUrl,
+                    LinkUtil.getLinkCacheValidTime(shortLinkInDB.getValidDate()),
+                    TimeUnit.SECONDS
+            );
             //进行跳转
             httpServletResponse.sendRedirect(originUrl);
         }finally{
             lock.unlock();
         }
-
     }
 
     private String generateSuffix(ShortLinkCreateReqDTO requestParams){
