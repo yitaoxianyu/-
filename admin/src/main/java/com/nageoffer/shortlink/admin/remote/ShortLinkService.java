@@ -6,6 +6,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
+import com.nageoffer.shortlink.admin.dto.req.RecoverShortLinkReqDTO;
 import com.nageoffer.shortlink.admin.remote.req.*;
 import com.nageoffer.shortlink.admin.remote.resp.RecycleBinPageRespDTO;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkCreateRespDTO;
@@ -84,6 +85,24 @@ public interface ShortLinkService {
     default Result<Void> saveShortLink2RecycleBin(SaveShortLinkReqDTO requestParams){
         String jsonStr = HttpUtil.post(
                 "http://localhost:8002/api/short-link/v1/recycle-bin/save",
+                JSONObject.toJSONString(requestParams)
+        );
+
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
+    }
+
+    default Result<Void> recoverShortLink(RecoverShortLinkReqDTO requestParams){
+        String jsonStr = HttpUtil.post(
+                "http://localhost:8002/api/short-link/v1/recycle-bin/recover",
+                JSONObject.toJSONString(requestParams)
+        );
+
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
+    }
+
+    default Result<Void> removeShortLink(RemoveShortLinkReqDTO requestParams){
+        String jsonStr = HttpUtil.post(
+                "http://localhost:8002/api/short-link/v1/recycle-bin/remove",
                 JSONObject.toJSONString(requestParams)
         );
 

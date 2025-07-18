@@ -3,9 +3,7 @@ package com.nageoffer.shortlink.project.dao.entity;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.*;
 
 import java.io.Serializable;
 import java.util.Date;
@@ -18,6 +16,8 @@ import java.util.Date;
 
 @Data
 @TableName("t_link")
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @EqualsAndHashCode(callSuper = true)
 public class ShortLinkDO extends DatabaseDO implements Serializable {
