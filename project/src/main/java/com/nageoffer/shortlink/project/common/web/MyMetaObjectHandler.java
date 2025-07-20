@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.Date;
 
+/**
+ * 这个组件默认只有继承 serviceImpl调用方法时才会拦截执行
+ */
 @Component
 public class MyMetaObjectHandler implements MetaObjectHandler {
     @Override

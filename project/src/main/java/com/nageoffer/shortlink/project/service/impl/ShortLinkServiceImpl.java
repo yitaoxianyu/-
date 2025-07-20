@@ -1,5 +1,6 @@
 package com.nageoffer.shortlink.project.service.impl;
 
+import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -10,8 +11,10 @@ import com.nageoffer.shortlink.project.common.convention.exception.ClientExcepti
 import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkDO;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkGotoDO;
+import com.nageoffer.shortlink.project.dao.entity.ShortLinkStatsDO;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper;
+import com.nageoffer.shortlink.project.dao.mapper.ShortLinkStatsMapper;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
@@ -50,6 +53,8 @@ import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.PER
 public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLinkDO> implements ShortLinkService {
 
     private final ShortLinkGotoMapper shortLinkGotoMapper;
+
+    private final ShortLinkStatsMapper shortLinkStatsMapper;
 
     private final RBloomFilter<String> shortUriCreateBloomFilter;
 
@@ -165,6 +170,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 httpServletResponse.sendRedirect("/page/notfound");
                 return ;
             }
+            recordStats(fullShortUrl,null);
             httpServletResponse.sendRedirect(originUrl);
             return ;
         }
@@ -179,7 +185,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         try{
             //这里再查一下,有可能之前获取的线程已经更新了缓存
             originUrl = stringRedisTemplate.opsForValue().get(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
+            //这里可能缓存了一个空对象
             if(originUrl != null) {
+                if(originUrl.equals("-")){
+                    httpServletResponse.sendRedirect("/page/notfound");
+                    return ;
+                }
+                recordStats(fullShortUrl,null);
                 httpServletResponse.sendRedirect(originUrl);
                 return ;
             }
@@ -208,7 +220,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .eq(ShortLinkDO::getEnableStatus,1);
             ShortLinkDO shortLinkInDB = baseMapper.selectOne(shortLinkQueryWrapper);
             //查出来的过期了,或者被禁用了或者不存在
-            if(shortLinkInDB == null || shortLinkInDB.getValidDate().before(new Date())){
+            if(shortLinkInDB == null || (shortLinkInDB.getValidDate() != null && shortLinkInDB.getValidDate().before(new Date()))){
                 //缓存一个空对象
                 stringRedisTemplate.opsForValue().set(
                         String.format(SHORT_LINK_GOTO_KEY,fullShortUrl),
@@ -219,6 +231,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 httpServletResponse.sendRedirect("/page/notfound");
                 return ;
             }
+            //这里有效期为永久或者还未过期
             originUrl = shortLinkInDB.getOriginUrl();
             //这里将查到的数据进行缓存
             stringRedisTemplate.opsForValue().set(
@@ -227,11 +240,35 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     LinkUtil.getLinkCacheValidTime(shortLinkInDB.getValidDate()),
                     TimeUnit.SECONDS
             );
-            //进行跳转
+            //进行跳转并且更新更新数据
+            recordStats(shortLinkInDB.getFullShortUrl(),shortLinkInDB.getGid());
             httpServletResponse.sendRedirect(originUrl);
         }finally{
             lock.unlock();
         }
+    }
+
+    private void recordStats(String fullShortUrl,String gid){
+        if (Objects.isNull(gid)) {
+            LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
+                    .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
+            ShortLinkGotoDO shortLinkGotoInDB = shortLinkGotoMapper.selectOne(queryWrapper);
+            gid = shortLinkGotoInDB.getGid();
+        }
+        Date date = new Date();
+        int weekday = DateUtil.dayOfWeek(date);
+        int hour = DateUtil.hour(date, true);
+        ShortLinkStatsDO shortLinkStatsDO = ShortLinkStatsDO.builder()
+                .gid(gid)
+                .fullShortUrl(fullShortUrl)
+                .pv(1)
+                .uv(1)
+                .uip(1)
+                .date(date)
+                .weekday(weekday)
+                .hour(hour)
+                .build();
+        shortLinkStatsMapper.insertStatsOrUpdate(shortLinkStatsDO);
     }
 
     private String generateSuffix(ShortLinkCreateReqDTO requestParams){
