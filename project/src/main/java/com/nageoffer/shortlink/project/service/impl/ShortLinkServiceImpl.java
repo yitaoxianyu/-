@@ -1,5 +1,6 @@
 package com.nageoffer.shortlink.project.service.impl;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -25,6 +26,7 @@ import com.nageoffer.shortlink.project.service.ShortLinkService;
 import com.nageoffer.shortlink.project.util.BeanUtil;
 import com.nageoffer.shortlink.project.util.HashUtil;
 import com.nageoffer.shortlink.project.util.LinkUtil;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -38,13 +40,11 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
-import static com.nageoffer.shortlink.project.common.constants.ShortLinkConstants.LOCK_SHORT_LINK_GOTO_KEY;
-import static com.nageoffer.shortlink.project.common.constants.ShortLinkConstants.SHORT_LINK_GOTO_KEY;
+import static com.nageoffer.shortlink.project.common.constants.ShortLinkConstants.*;
 import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.PERMANENT;
 
 @Service
@@ -170,7 +170,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 httpServletResponse.sendRedirect("/page/notfound");
                 return ;
             }
-            recordStats(fullShortUrl,null);
+            recordStats(fullShortUrl,null,httpServletRequest,httpServletResponse);
             httpServletResponse.sendRedirect(originUrl);
             return ;
         }
@@ -191,7 +191,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     httpServletResponse.sendRedirect("/page/notfound");
                     return ;
                 }
-                recordStats(fullShortUrl,null);
+                recordStats(fullShortUrl,null,httpServletRequest,httpServletResponse);
                 httpServletResponse.sendRedirect(originUrl);
                 return ;
             }
@@ -241,14 +241,40 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     TimeUnit.SECONDS
             );
             //进行跳转并且更新更新数据
-            recordStats(shortLinkInDB.getFullShortUrl(),shortLinkInDB.getGid());
+            recordStats(shortLinkInDB.getFullShortUrl(),shortLinkInDB.getGid(),httpServletRequest,httpServletResponse);
             httpServletResponse.sendRedirect(originUrl);
         }finally{
             lock.unlock();
         }
     }
 
-    private void recordStats(String fullShortUrl,String gid){
+    private void recordStats(String fullShortUrl,String gid,HttpServletRequest request,HttpServletResponse response){
+        Cookie[] cookies = request.getCookies();
+        //true代表没有该 cookie 没有访问过当前短链接
+        AtomicReference<Boolean> flag = new AtomicReference<>(false);
+        Runnable task = () -> {
+            String value = UUID.randomUUID().toString();
+            Cookie uvCookie = new Cookie("uv",value);
+            //cookie 的作用范围为域名 + uri
+            //这里考虑设置一个全局的,根据不同的uri redis 集合来区分是否访问这个 uri了
+            response.addCookie(uvCookie);
+            stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl, value);
+            flag.set(true);
+        };
+        //判断是否是空
+        if (CollUtil.isEmpty(Arrays.asList(cookies))) {
+            task.run();
+        }else{
+            Arrays.stream(cookies)
+                    .filter(cookie -> Objects.equals(cookie.getName(),"uv"))
+                    .findFirst()
+                    .map(Cookie::getValue)
+                    .ifPresentOrElse(value -> {
+                        Long added = stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl,value);
+                        flag.set(added != null && added > 0);
+                        },task
+                    );
+        }
         if (Objects.isNull(gid)) {
             LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                     .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
@@ -262,7 +288,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .gid(gid)
                 .fullShortUrl(fullShortUrl)
                 .pv(1)
-                .uv(1)
+                .uv(flag.get() ? 1 : 0)
                 .uip(1)
                 .date(date)
                 .weekday(weekday)
