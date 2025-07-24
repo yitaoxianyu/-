@@ -17,4 +17,6 @@ public class ShortLinkConstants {
     //设置一个cookie 有效期为一个月
     public static final long DEFAULT_UV_VALID_TIME = 60 * 60 * 24 * 30;
 
+    public static final String SHORT_LINK_IP_KEY = "short-link:stats:ip";
+
 }

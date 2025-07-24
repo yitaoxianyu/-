@@ -27,11 +27,12 @@
                      #{weekday},
                      NOW(),
                      NOW(),
-                     #{delFlag}
+                     0
                  )
         ON DUPLICATE KEY UPDATE
                              pv = pv + VALUES(pv),
                              uv = uv + VALUES(uv),
-                             uip = uip + VALUES(uip)
+                             uip = uip + VALUES(uip),
+                             update_time = NOW()
     </insert>
 </mapper>

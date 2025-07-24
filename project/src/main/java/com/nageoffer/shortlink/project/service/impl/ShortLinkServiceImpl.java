@@ -1,7 +1,8 @@
 package com.nageoffer.shortlink.project.service.impl;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.http.HttpUtil;
+import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -12,8 +13,10 @@ import com.nageoffer.shortlink.project.common.convention.exception.ClientExcepti
 import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkDO;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkGotoDO;
+import com.nageoffer.shortlink.project.dao.entity.ShortLinkLocaleStatsDO;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkStatsDO;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkGotoMapper;
+import com.nageoffer.shortlink.project.dao.mapper.ShortLinkLocaleStatsMapper;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.nageoffer.shortlink.project.dao.mapper.ShortLinkStatsMapper;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkCreateReqDTO;
@@ -35,6 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -56,11 +60,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     private final ShortLinkStatsMapper shortLinkStatsMapper;
 
+    private final ShortLinkLocaleStatsMapper shortLinkLocaleStatsMapper;
+
     private final RBloomFilter<String> shortUriCreateBloomFilter;
 
     private final StringRedisTemplate stringRedisTemplate;
 
     private final RedissonClient redissonClient;
+
+    @Value("${short-link.api.locale-stats.key}")
+    private String localeStatsKey;
 
     @Override
     @Transactional
@@ -251,7 +260,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private void recordStats(String fullShortUrl,String gid,HttpServletRequest request,HttpServletResponse response){
         Cookie[] cookies = request.getCookies();
         //true代表没有该 cookie 没有访问过当前短链接
-        AtomicReference<Boolean> flag = new AtomicReference<>(false);
+        AtomicReference<Boolean> uvFlag = new AtomicReference<>(false);
         Runnable task = () -> {
             String value = UUID.randomUUID().toString();
             Cookie uvCookie = new Cookie("uv",value);
@@ -259,10 +268,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             //这里考虑设置一个全局的,根据不同的uri redis 集合来区分是否访问这个 uri了
             response.addCookie(uvCookie);
             stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl, value);
-            flag.set(true);
+            uvFlag.set(true);
         };
         //判断是否是空
-        if (CollUtil.isEmpty(Arrays.asList(cookies))) {
+        if (cookies == null) {
             task.run();
         }else{
             Arrays.stream(cookies)
@@ -271,10 +280,15 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .map(Cookie::getValue)
                     .ifPresentOrElse(value -> {
                         Long added = stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl,value);
-                        flag.set(added != null && added > 0);
+                        uvFlag.set(added != null && added > 0);
                         },task
                     );
         }
+        //判断 ip 是否访问过
+        String originIp = LinkUtil.getIp(request);
+        Long added = stringRedisTemplate.opsForSet().add(SHORT_LINK_IP_KEY + fullShortUrl, originIp);
+        Boolean ipFlag = (added != null && added > 0);
+        //填充 gid 字段
         if (Objects.isNull(gid)) {
             LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                     .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
@@ -282,19 +296,41 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             gid = shortLinkGotoInDB.getGid();
         }
         Date date = new Date();
+        //根据 ip查询地址数据
+        HashMap<String,Object> params = new HashMap<>();
+        params.put("key",localeStatsKey);
+        params.put("ip",originIp);
+        String jsonStr = HttpUtil.get("restapi.amap.com/v3/ip", params);
+        JSONObject jsonObject = JSONObject.parse(jsonStr);
+        if (!jsonObject.get("infocode").equals("10000")){
+            throw new ServiceException("服务调用失败");
+        }
+        //高德 api 只能查询中国这里默认中国
+        ShortLinkLocaleStatsDO shortLinkLocaleStatsDO = ShortLinkLocaleStatsDO.builder()
+                .country("中国")
+                .province(jsonObject.getString("province"))
+                .city(jsonObject.getString("city"))
+                .adcode(jsonObject.getString("adcode"))
+                .gid(gid)
+                .fullShortUrl(fullShortUrl)
+                .cnt(1)
+                .date(date).build();
+        //构建实体
         int weekday = DateUtil.dayOfWeek(date);
         int hour = DateUtil.hour(date, true);
         ShortLinkStatsDO shortLinkStatsDO = ShortLinkStatsDO.builder()
                 .gid(gid)
                 .fullShortUrl(fullShortUrl)
                 .pv(1)
-                .uv(flag.get() ? 1 : 0)
-                .uip(1)
+                .uv(uvFlag.get() ? 1 : 0)
+                .uip(ipFlag ? 1 : 0)
                 .date(date)
                 .weekday(weekday)
                 .hour(hour)
                 .build();
         shortLinkStatsMapper.insertStatsOrUpdate(shortLinkStatsDO);
+        shortLinkLocaleStatsMapper.insertStatsOrUpdate(shortLinkLocaleStatsDO);
+
     }
 
     private String generateSuffix(ShortLinkCreateReqDTO requestParams){

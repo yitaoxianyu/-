@@ -13,3 +13,9 @@ spring:
       port: 6379
       host: localhost
       password: 198311
+short-link:
+  api:
+    locale-stats:
+      key: 0e2e5f430fddf36b5645edee727c1905
+
+

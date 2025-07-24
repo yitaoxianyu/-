@@ -2,6 +2,7 @@ package com.nageoffer.shortlink.project.util;
 
 import cn.hutool.core.date.DateUnit;
 import cn.hutool.core.date.DateUtil;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.Date;
 import java.util.Optional;
@@ -18,4 +19,9 @@ public class LinkUtil {
                 .map(each -> DateUtil.between(new Date(), each, DateUnit.SECOND))
                 .orElse(DEFAULT_CACHE_VALID_TIME);
     }
+
+    public static String getIp(HttpServletRequest request){
+       return request.getRemoteAddr();
+    }
+
 }
