@@ -1,6 +1,7 @@
 package com.nageoffer.shortlink.project.service.impl;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.lang.UUID;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -11,14 +12,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.project.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
-import com.nageoffer.shortlink.project.dao.entity.ShortLinkDO;
-import com.nageoffer.shortlink.project.dao.entity.ShortLinkGotoDO;
-import com.nageoffer.shortlink.project.dao.entity.ShortLinkLocaleStatsDO;
-import com.nageoffer.shortlink.project.dao.entity.ShortLinkStatsDO;
-import com.nageoffer.shortlink.project.dao.mapper.ShortLinkGotoMapper;
-import com.nageoffer.shortlink.project.dao.mapper.ShortLinkLocaleStatsMapper;
-import com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper;
-import com.nageoffer.shortlink.project.dao.mapper.ShortLinkStatsMapper;
+import com.nageoffer.shortlink.project.dao.entity.*;
+import com.nageoffer.shortlink.project.dao.mapper.*;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
@@ -61,6 +56,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final ShortLinkStatsMapper shortLinkStatsMapper;
 
     private final ShortLinkLocaleStatsMapper shortLinkLocaleStatsMapper;
+
+    private final ShortLinkBrowserStatsMapper shortLinkBrowserStatsMapper;
+
+    private final ShortLinkOsStatsMapper shortLinkOsStatsMapper;
+
+    private final ShortLinkAccessLogsMapper shortlinkAccessLogsMapper;
 
     private final RBloomFilter<String> shortUriCreateBloomFilter;
 
@@ -261,13 +262,14 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         Cookie[] cookies = request.getCookies();
         //true代表没有该 cookie 没有访问过当前短链接
         AtomicReference<Boolean> uvFlag = new AtomicReference<>(false);
+        AtomicReference<String> value = new AtomicReference<>();
         Runnable task = () -> {
-            String value = UUID.randomUUID().toString();
-            Cookie uvCookie = new Cookie("uv",value);
+            value.set(UUID.fastUUID().toString());
+            Cookie uvCookie = new Cookie("uv",value.get());
             //cookie 的作用范围为域名 + uri
             //这里考虑设置一个全局的,根据不同的uri redis 集合来区分是否访问这个 uri了
             response.addCookie(uvCookie);
-            stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl, value);
+            stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl, value.get());
             uvFlag.set(true);
         };
         //判断是否是空
@@ -278,8 +280,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .filter(cookie -> Objects.equals(cookie.getName(),"uv"))
                     .findFirst()
                     .map(Cookie::getValue)
-                    .ifPresentOrElse(value -> {
-                        Long added = stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl,value);
+                    .ifPresentOrElse(value1 -> {
+                        value.set(value1);
+                        Long added = stringRedisTemplate.opsForSet().add(SHORT_LINK_UV_KEY + fullShortUrl,value1);
                         uvFlag.set(added != null && added > 0);
                         },task
                     );
@@ -315,7 +318,23 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .fullShortUrl(fullShortUrl)
                 .cnt(1)
                 .date(date).build();
-        //构建实体
+        //获取浏览器信息
+        String browser = LinkUtil.getBrowser(request);
+        ShortLinkBrowserStatsDO shortLinkBrowserStatsDO = ShortLinkBrowserStatsDO.builder()
+                .browser(browser)
+                .gid(gid)
+                .fullShortUrl(fullShortUrl)
+                .date(date)
+                .cnt(1).build();
+        //获取操作系统
+        String os = LinkUtil.getOs(request);
+        ShortLinkOsStatsDO shortLinkOsStatsDO = ShortLinkOsStatsDO.builder()
+                .os(os)
+                .fullShortUrl(fullShortUrl)
+                .gid(gid)
+                .date(date)
+                .cnt(1).build();
+        //构建访问记录
         int weekday = DateUtil.dayOfWeek(date);
         int hour = DateUtil.hour(date, true);
         ShortLinkStatsDO shortLinkStatsDO = ShortLinkStatsDO.builder()
@@ -328,9 +347,21 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .weekday(weekday)
                 .hour(hour)
                 .build();
+        //构建访问日志(类似于各个统计数据的概括)
+        ShortLinkAccessLogsDO shortLinkAccessLogsDO = ShortLinkAccessLogsDO.builder()
+                .gid(gid)
+                .fullShortUrl(fullShortUrl)
+                .user(value.get())
+                .os(os)
+                .ip(originIp)
+                .browser(browser)
+                .build();
+
         shortLinkStatsMapper.insertStatsOrUpdate(shortLinkStatsDO);
         shortLinkLocaleStatsMapper.insertStatsOrUpdate(shortLinkLocaleStatsDO);
-
+        shortLinkBrowserStatsMapper.insertStatsOrUpdate(shortLinkBrowserStatsDO);
+        shortLinkOsStatsMapper.insertStatsOrUpdate(shortLinkOsStatsDO);
+        shortlinkAccessLogsMapper.insert(shortLinkAccessLogsDO);
     }
 
     private String generateSuffix(ShortLinkCreateReqDTO requestParams){
