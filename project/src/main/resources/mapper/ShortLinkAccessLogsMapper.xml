@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+<mapper namespace="com.nageoffer.shortlink.project.dao.mapper.ShortLinkAccessLogsMapper">
+    <select id="selectTopIpStats"
+            resultType="hashmap">
+        select ip,count(*) as count from t_link_access_logs
+        where gid = #{gid} and full_short_url = #{fullShortUrl}
+          and create_time between #{start} and #{end} and del_flag = 0
+        group by ip order by count desc limit 5;
+    </select>
+    <select id="selectUvTypeStats" resultType="java.util.HashMap">
+        # 查询日期内新老访客占比
+    SELECT
+        sum(new_user) as new_user,
+        sum(old_user) as old_user
+        FROM (
+            SELECT
+            CASE
+                WHEN COUNT(DISTINCT DATE(create_time)) > 1 THEN 1 ELSE 0 END AS old_user,
+            CASE
+                WHEN COUNT(DISTINCT DATE(create_time)) = 1
+                AND MAX(create_time) &gt;= #{start} AND MAX(create_time) &lt;= #{end}
+                THEN 1 ELSE 0 END AS new_user
+        FROM t_link_access_logs
+        WHERE
+        full_short_url = 'nurl.ink/2pRaH6' AND
+        gid = 'VsyAaf' AND
+        user IS NOT NULL
+        GROUP BY user
+    ) AS subquery;  -- 再按新老访客分组统计数量
+    </select>
+</mapper>

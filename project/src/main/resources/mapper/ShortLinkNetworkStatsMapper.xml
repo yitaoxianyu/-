@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="com.nageoffer.shortlink.project.dao.mapper.ShortLinkBrowserStatsMapper">
+<mapper namespace="com.nageoffer.shortlink.project.dao.mapper.ShortLinkNetworkStatsMapper">
     <insert id="insertStatsOrUpdate">
-        INSERT INTO t_link_browser_stats (
+        INSERT INTO t_link_network_stats (
             full_short_url,
             gid,
             date,
             cnt,
-            browser,
+            network,
             create_time,
             update_time,
             del_flag
@@ -16,20 +16,20 @@
                      #{gid},
                      #{date},
                      #{cnt},
-                     #{browser},
-                     NOW(),
-                     NOW(),
+                     #{network},
+                     now(),
+                     now(),
                      0
                  )
         ON DUPLICATE KEY UPDATE
                              cnt = cnt + #{cnt},
                              update_time = NOW();
-
     </insert>
-    <select id="selectListByBrowser"
-            resultType="com.nageoffer.shortlink.project.dao.entity.ShortLinkBrowserStatsDO">
-        select browser,sum(cnt) as cnt from t_link_browser_stats
-        where gid = #{gid} and full_short_url = #{fullShortUrl} and date between #{start} and #{end} and del_flag = 0
-        group by browser
+    <select id="selectListByNetwork"
+            resultType="com.nageoffer.shortlink.project.dao.entity.ShortLinkNetworkStatsDO">
+        select count(*) as cnt,network from t_link_network_stats
+        where gid = #{gid} and full_short_url = #{fullShortUrl}
+          and date between #{start} and #{end} and del_flag = 0
+        group by network;
     </select>
 </mapper>

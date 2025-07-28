@@ -35,4 +35,22 @@
                              uip = uip + VALUES(uip),
                              update_time = NOW()
     </insert>
+    <!--  查询每个日期的数据  -->
+    <select id="selectListByDate" resultType="com.nageoffer.shortlink.project.dao.entity.ShortLinkStatsDO">
+        select sum(uip) as uip,sum(uv) as uv,sum(pv) as pv,date,weekday from t_link_access_stats
+        where full_short_url = #{fullShortUrl} and gid = #{gid} and date between #{start} and #{end} and del_flag = 0
+        group by date,weekday
+    </select>
+    <!--  查询 start -> end中 24小时的访问次数 pv-->
+    <select id="selectListByHour" resultType="com.nageoffer.shortlink.project.dao.entity.ShortLinkStatsDO">
+        select hour,sum(pv) as pv from t_link_access_stats
+        where gid = #{gid} and full_short_url = #{fullShortUrl} and date between #{start} and #{end} and del_flag = 0
+        group by hour;
+    </select>
+    <select id="selectListByWeekday" resultType="com.nageoffer.shortlink.project.dao.entity.ShortLinkStatsDO">
+        select weekday,sum(pv) as pv from t_link_access_stats
+        where gid = #{gid} and full_short_url = #{fullShortUrl} and date between #{start} and #{end} and del_flag = 0
+        group by weekday;
+    </select>
+
 </mapper>

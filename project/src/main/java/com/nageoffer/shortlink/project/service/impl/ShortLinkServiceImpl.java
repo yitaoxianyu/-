@@ -61,6 +61,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     private final ShortLinkOsStatsMapper shortLinkOsStatsMapper;
 
+    private final ShortLinkNetworkStatsMapper shortLinkNetworkStatsMapper;
+
+    private final ShortLinkDeviceStatsMapper shortLinkDeviceStatsMapper;
+
     private final ShortLinkAccessLogsMapper shortlinkAccessLogsMapper;
 
     private final RBloomFilter<String> shortUriCreateBloomFilter;
@@ -266,6 +270,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         Runnable task = () -> {
             value.set(UUID.fastUUID().toString());
             Cookie uvCookie = new Cookie("uv",value.get());
+            //默认 cookie默认关闭浏览器自动失效
+            //这里设置为一个月
+            uvCookie.setMaxAge(DEFAULT_UV_VALID_TIME);
             //cookie 的作用范围为域名 + uri
             //这里考虑设置一个全局的,根据不同的uri redis 集合来区分是否访问这个 uri了
             response.addCookie(uvCookie);
@@ -303,7 +310,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         HashMap<String,Object> params = new HashMap<>();
         params.put("key",localeStatsKey);
         params.put("ip",originIp);
-        String jsonStr = HttpUtil.get("restapi.amap.com/v3/ip", params);
+        String jsonStr = HttpUtil.get("http://restapi.amap.com/v3/ip", params);
         JSONObject jsonObject = JSONObject.parse(jsonStr);
         if (!jsonObject.get("infocode").equals("10000")){
             throw new ServiceException("服务调用失败");
@@ -334,6 +341,24 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .gid(gid)
                 .date(date)
                 .cnt(1).build();
+        //获取网络类型
+        String network = LinkUtil.getNetwork(request);
+        ShortLinkNetworkStatsDO shortLinkNetworkStatsDO = ShortLinkNetworkStatsDO.builder()
+                .network(network)
+                .gid(gid)
+                .fullShortUrl(fullShortUrl)
+                .cnt(1)
+                .date(date)
+                .build();
+        //设备信息
+        String device = LinkUtil.getDevice(request);
+        ShortLinkDeviceStatsDO shortLinkDeviceStatsDO = ShortLinkDeviceStatsDO.builder()
+                .device(device)
+                .gid(gid)
+                .fullShortUrl(fullShortUrl)
+                .cnt(1)
+                .date(date)
+                .build();
         //构建访问记录
         int weekday = DateUtil.dayOfWeek(date);
         int hour = DateUtil.hour(date, true);
@@ -361,6 +386,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         shortLinkLocaleStatsMapper.insertStatsOrUpdate(shortLinkLocaleStatsDO);
         shortLinkBrowserStatsMapper.insertStatsOrUpdate(shortLinkBrowserStatsDO);
         shortLinkOsStatsMapper.insertStatsOrUpdate(shortLinkOsStatsDO);
+        shortLinkNetworkStatsMapper.insertStatsOrUpdate(shortLinkNetworkStatsDO);
+        shortLinkDeviceStatsMapper.insertStatsOrUpdate(shortLinkDeviceStatsDO);
         shortlinkAccessLogsMapper.insert(shortLinkAccessLogsDO);
     }
 
