@@ -29,4 +29,14 @@
         GROUP BY user
     ) AS subquery;  -- 再按新老访客分组统计数量
     </select>
+    <select id="selectUvTypeByUser" resultType="java.util.HashMap">
+        select user,CASE WHEN MIN(create_time) BETWEEN #{start} AND #{end} THEN '新访客' ELSE '老访客' END as uvType
+        from t_link_access_logs
+                 where gid = #{gid} and full_short_url = #{fullShortUrl}
+                 and user in
+                 <foreach collection="userList" item="user" open="(" close=")" separator=",">
+                    #{user}
+                </foreach>
+        group by user
+    </select>
 </mapper>

@@ -15,7 +15,7 @@ public class DatabaseDO {
 
      */
     @TableField(fill = FieldFill.INSERT)
-    private Date createTime;
+    protected Date createTime;
 
 
     /**
@@ -24,7 +24,7 @@ public class DatabaseDO {
 
      */
     @TableField(fill = FieldFill.INSERT_UPDATE)
-    private Date updateTime;
+    protected Date updateTime;
 
 
     /**
@@ -33,5 +33,5 @@ public class DatabaseDO {
 
      */
     @TableField(fill = FieldFill.INSERT)
-    private Integer delFlag;
+    protected Integer delFlag;
 }

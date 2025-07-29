@@ -4,11 +4,19 @@ import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.date.DateField;
 import cn.hutool.core.date.DateTime;
 import cn.hutool.core.date.DateUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.nageoffer.shortlink.project.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.project.dao.entity.*;
 import com.nageoffer.shortlink.project.dao.mapper.*;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkAccessLogsReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
+import com.nageoffer.shortlink.project.dto.resp.logs.ShortLinkAccessLogsRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.stats.*;
 import com.nageoffer.shortlink.project.service.ShortLinkStatsService;
+import com.nageoffer.shortlink.project.util.BeanUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -246,6 +254,44 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
                 .uvTypeStats(uvTypeStats)
                 .networkStats(networkStats)
                 .deviceStats(deviceStats)
-                .build();
+                    .build();
+        }
+
+    @Override
+    public IPage<ShortLinkAccessLogsRespDTO> showOneUrlLogs(ShortLinkAccessLogsReqDTO requestParams) {
+        String gid = requestParams.getGid();
+        String fullShortUrl = requestParams.getFullShortUrl();
+        DateTime start = DateUtil.parse(requestParams.getStartDate());
+        DateTime end = DateUtil.parse(requestParams.getEndDate());
+        //查询指定日期内的访问日志
+        LambdaQueryWrapper<ShortLinkAccessLogsDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkAccessLogsDO.class)
+                .eq(ShortLinkAccessLogsDO::getGid, gid)
+                .eq(ShortLinkAccessLogsDO::getFullShortUrl, fullShortUrl)
+                .eq(ShortLinkAccessLogsDO::getDelFlag, 0)
+                .between(ShortLinkAccessLogsDO::getCreateTime, start, end);
+        IPage<ShortLinkAccessLogsDO> shortLinkAccessLogsDOPage = shortLinkAccessLogsMapper.selectPage(requestParams, queryWrapper);
+        IPage<ShortLinkAccessLogsRespDTO> converted = shortLinkAccessLogsDOPage.convert(item -> BeanUtil.convert(item, ShortLinkAccessLogsRespDTO.class));
+        //将指定日志内的访问日志映射为新老访客
+        //获取查询到的用户列表
+        List<String> userList = converted.getRecords().stream()
+                .map(ShortLinkAccessLogsRespDTO::getUser)
+                .distinct().toList();
+        if(CollUtil.isEmpty(userList)){
+            //选中的日期内没有用户访问
+            return new Page<>();
+        }
+        //用户名对应新老访客类型
+        /*
+         这里需要传之前查到的 userList,如果不传的话结果会多(有的用户没有在指定日期内访问,但是查询是也会判断是新/老访客)
+         */
+        List<HashMap<String, Object>> uvTypeByUser = shortLinkAccessLogsMapper.selectUvTypeByUser(start, end, gid, fullShortUrl,userList);
+        converted.getRecords().stream().forEach(item -> {
+            Object uvType = uvTypeByUser.stream().filter(each -> Objects.equals(each.get("user"), item.getUser()))
+                    .map(each -> each.get("uvType"))
+                    .findFirst()
+                    .orElseThrow(() -> new ClientException("用户传参有误"));
+            item.setUvType(uvType.toString());
+        });
+        return converted;
     }
 }

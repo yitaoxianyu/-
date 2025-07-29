@@ -18,4 +18,8 @@ public interface ShortLinkAccessLogsMapper extends BaseMapper<ShortLinkAccessLog
             @Param("start") DateTime start, @Param("end")DateTime end, @Param("gid")String gid, @Param("fullShortUrl") String fullShortUrl
     );
 
+    List<HashMap<String,Object>> selectUvTypeByUser(
+            @Param("start") DateTime start, @Param("end")DateTime end, @Param("gid")String gid, @Param("fullShortUrl") String fullShortUrl,
+            @Param("userList") List<String> userList
+    );
 }

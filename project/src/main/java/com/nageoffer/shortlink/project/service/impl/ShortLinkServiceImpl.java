@@ -2,6 +2,7 @@ package com.nageoffer.shortlink.project.service.impl;
 
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.lang.UUID;
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -310,16 +311,18 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         HashMap<String,Object> params = new HashMap<>();
         params.put("key",localeStatsKey);
         params.put("ip",originIp);
-        String jsonStr = HttpUtil.get("http://restapi.amap.com/v3/ip", params);
+        String jsonStr = HttpUtil.get("https://restapi.amap.com/v3/ip", params);
         JSONObject jsonObject = JSONObject.parse(jsonStr);
         if (!jsonObject.get("infocode").equals("10000")){
             throw new ServiceException("服务调用失败");
         }
         //高德 api 只能查询中国这里默认中国
+        String province = jsonObject.getString("province");
+        String city = jsonObject.getString("city");
         ShortLinkLocaleStatsDO shortLinkLocaleStatsDO = ShortLinkLocaleStatsDO.builder()
                 .country("中国")
-                .province(jsonObject.getString("province"))
-                .city(jsonObject.getString("city"))
+                .province(province)
+                .city(city)
                 .adcode(jsonObject.getString("adcode"))
                 .gid(gid)
                 .fullShortUrl(fullShortUrl)
@@ -372,7 +375,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .weekday(weekday)
                 .hour(hour)
                 .build();
-        //构建访问日志(类似于各个统计数据的概括)
+        //构建访问日志(类似于各个统计数据的概括),地区信息默认是国内
         ShortLinkAccessLogsDO shortLinkAccessLogsDO = ShortLinkAccessLogsDO.builder()
                 .gid(gid)
                 .fullShortUrl(fullShortUrl)
@@ -380,6 +383,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .os(os)
                 .ip(originIp)
                 .browser(browser)
+                .locale(StrUtil.join("-","中国",province,city))
+                .network(network)
+                .device(device)
                 .build();
 
         shortLinkStatsMapper.insertStatsOrUpdate(shortLinkStatsDO);

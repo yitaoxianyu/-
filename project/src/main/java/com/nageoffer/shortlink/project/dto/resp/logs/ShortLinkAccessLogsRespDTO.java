@@ -1,26 +1,15 @@
-package com.nageoffer.shortlink.project.dao.entity;
+package com.nageoffer.shortlink.project.dto.resp.logs;
 
-import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.io.Serializable;
-
 @Data
-@TableName("t_link_access_logs")
-@AllArgsConstructor
-@NoArgsConstructor
 @Builder
-public class ShortLinkAccessLogsDO extends DatabaseDO implements Serializable {
-
-    private static final long serialVersionUID=1L;
-
-    /**
-     *  ID
-     */
-    private Long id;
+@NoArgsConstructor
+@AllArgsConstructor
+public class ShortLinkAccessLogsRespDTO {
 
     /**
      *  完整短链接
@@ -63,6 +52,8 @@ public class ShortLinkAccessLogsDO extends DatabaseDO implements Serializable {
      *  网络类型
      */
     private String network;
-
-
+    /**
+     *  用户类型
+     */
+    private String uvType;
 }
