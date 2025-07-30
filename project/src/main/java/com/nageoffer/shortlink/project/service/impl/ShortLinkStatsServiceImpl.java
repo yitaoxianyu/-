@@ -240,7 +240,6 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
             deviceStats.add(deviceRespDTO);
         });
 
-
         return ShortLinkStatsRespDTO.builder()
                 .pv(totalPv)
                 .uv(totalUv)
@@ -254,7 +253,7 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
                 .uvTypeStats(uvTypeStats)
                 .networkStats(networkStats)
                 .deviceStats(deviceStats)
-                    .build();
+                .build();
         }
 
     @Override

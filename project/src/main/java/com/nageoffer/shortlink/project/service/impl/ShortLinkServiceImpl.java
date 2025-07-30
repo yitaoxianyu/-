@@ -52,6 +52,8 @@ import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.PER
 @RequiredArgsConstructor
 public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLinkDO> implements ShortLinkService {
 
+    private final ShortLinkMapper shortLinkMapper;
+
     private final ShortLinkGotoMapper shortLinkGotoMapper;
 
     private final ShortLinkStatsMapper shortLinkStatsMapper;
@@ -67,6 +69,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final ShortLinkDeviceStatsMapper shortLinkDeviceStatsMapper;
 
     private final ShortLinkAccessLogsMapper shortlinkAccessLogsMapper;
+
+    private final ShortLinkStatsTodayMapper shortLinkStatsTodayMapper;
 
     private final RBloomFilter<String> shortUriCreateBloomFilter;
 
@@ -97,6 +101,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .createdType(requestParams.getCreatedType())
                 .enableStatus(1)
                 .favicon(requestParams.getFavicon()).build();
+
         //这里不仅要插入短链接数据,还要插入跳转数据
         ShortLinkGotoDO shortLinkGotoDO = ShortLinkGotoDO.builder()
                 .fullShortUrl(requestParams.getDomain() + "/" + suffix)
@@ -107,6 +112,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         }catch (DuplicateKeyException ex){
             throw new ServiceException(String.format("短链接%s重复",requestParams.getDomain() + "/" + suffix));
         }
+        //缓存预热
         stringRedisTemplate.opsForValue().set(
                 String.format(SHORT_LINK_GOTO_KEY,requestParams.getDomain() + "/" + suffix),
                 requestParams.getOriginUrl(),
@@ -121,13 +127,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     @Override
     public IPage<ShortLinkPageRespDTO> pageQuery(ShortLinkPageReqDTO requestParams) {
-        LambdaQueryWrapper<ShortLinkDO> wrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
-                .eq(ShortLinkDO::getGid, requestParams.getGid())
-                .eq(ShortLinkDO::getDelFlag,0)
-                .eq(ShortLinkDO::getEnableStatus,1);
-
-        return baseMapper.selectPage(requestParams, wrapper)
-                .convert(item -> BeanUtil.convert(item, ShortLinkPageRespDTO.class));
+//        LambdaQueryWrapper<ShortLinkDO> wrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
+//                .eq(ShortLinkDO::getGid, requestParams.getGid())
+//                .eq(ShortLinkDO::getDelFlag,0)
+//                .eq(ShortLinkDO::getEnableStatus,1);
+        IPage<ShortLinkDO> shortLinkDOPage = shortLinkMapper.pageQuery(requestParams);
+        return shortLinkDOPage.convert(item -> BeanUtil.convert(item, ShortLinkPageRespDTO.class));
     }
 
     @Override
@@ -375,6 +380,21 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .weekday(weekday)
                 .hour(hour)
                 .build();
+        //统计将 uip,uv,pv记录到t_link表
+        update().setSql("total_pv = total_pv + 1")
+                .setSql(uvFlag.get(),"total_uv = total_uv + 1")
+                .setSql(ipFlag,"total_uip = total_uip + 1")
+                .eq("gid",gid)
+                .eq("full_short_url",fullShortUrl).update();
+        //统计今日 uip,uv,pv
+        ShortLinkStatsTodayDO shortLinkStatsTodayDO = ShortLinkStatsTodayDO.builder()
+                .date(date)
+                .fullShortUrl(fullShortUrl)
+                .gid(gid)
+                .todayPv(1)
+                .todayUv(uvFlag.get() ? 1 : 0)
+                .todayUip(ipFlag ? 1 : 0)
+                .build();
         //构建访问日志(类似于各个统计数据的概括),地区信息默认是国内
         ShortLinkAccessLogsDO shortLinkAccessLogsDO = ShortLinkAccessLogsDO.builder()
                 .gid(gid)
@@ -389,6 +409,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .build();
 
         shortLinkStatsMapper.insertStatsOrUpdate(shortLinkStatsDO);
+        shortLinkStatsTodayMapper.insertStatsOrUpdate(shortLinkStatsTodayDO);
         shortLinkLocaleStatsMapper.insertStatsOrUpdate(shortLinkLocaleStatsDO);
         shortLinkBrowserStatsMapper.insertStatsOrUpdate(shortLinkBrowserStatsDO);
         shortLinkOsStatsMapper.insertStatsOrUpdate(shortLinkOsStatsDO);
