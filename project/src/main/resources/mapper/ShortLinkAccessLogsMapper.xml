@@ -23,8 +23,8 @@
                 THEN 1 ELSE 0 END AS new_user
         FROM t_link_access_logs
         WHERE
-        full_short_url = 'nurl.ink/2pRaH6' AND
-        gid = 'VsyAaf' AND
+        full_short_url = #{fullShortUrl} AND
+        gid = #{gid} AND
         user IS NOT NULL
         GROUP BY user
     ) AS subquery;  -- 再按新老访客分组统计数量

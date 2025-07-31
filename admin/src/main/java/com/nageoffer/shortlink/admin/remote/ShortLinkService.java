@@ -1,6 +1,7 @@
 package com.nageoffer.shortlink.admin.remote;
 
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.alibaba.fastjson2.TypeReference;
@@ -8,10 +9,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.dto.req.RecoverShortLinkReqDTO;
 import com.nageoffer.shortlink.admin.remote.req.*;
-import com.nageoffer.shortlink.admin.remote.resp.RecycleBinPageRespDTO;
-import com.nageoffer.shortlink.admin.remote.resp.ShortLinkCreateRespDTO;
-import com.nageoffer.shortlink.admin.remote.resp.ShortLinkPageRespDTO;
-import com.nageoffer.shortlink.admin.remote.resp.ShortLinkQueryCountRespDTO;
+import com.nageoffer.shortlink.admin.remote.resp.*;
+import com.nageoffer.shortlink.admin.remote.resp.stats.ShortLinkStatsRespDTO;
 
 import java.util.HashMap;
 import java.util.List;
@@ -76,7 +75,10 @@ public interface ShortLinkService {
 
     default Result<IPage<RecycleBinPageRespDTO>> pageQueryShortLink(RecycleBinPageReqDTO requestParams){
         HashMap<String,Object> map = new HashMap<>();
-        map.put("requestParams",requestParams);
+        map.put("gids",requestParams.getGids());
+        map.put("current",requestParams.getCurrent());
+        map.put("size",requestParams.getSize());
+
 
         String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/recycle-bin/page", map);
         return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
@@ -104,6 +106,29 @@ public interface ShortLinkService {
         String jsonStr = HttpUtil.post(
                 "http://localhost:8002/api/short-link/v1/recycle-bin/remove",
                 JSONObject.toJSONString(requestParams)
+        );
+
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
+    }
+
+    default Result<ShortLinkStatsRespDTO> showOneUrlStats(ShortLinkStatsReqDTO requestParams){
+        String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/stats",
+                BeanUtil.beanToMap(requestParams)
+        );
+
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
+    }
+
+    default Result<IPage<ShortLinkAccessLogsRespDTO>> showOneUrlLogs(ShortLinkAccessLogsReqDTO requestParams){
+        HashMap<String,Object> map = new HashMap<>();
+        map.put("gid",requestParams.getGid());
+        map.put("fullShortUrl",requestParams.getFullShortUrl());
+        map.put("startDate",requestParams.getStartDate());
+        map.put("endDate",requestParams.getEndDate());
+        map.put("current",requestParams.getCurrent());
+        map.put("size",requestParams.getSize());
+        String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/stats/access-logs",
+                map
         );
 
         return JSONObject.parseObject(jsonStr, new TypeReference<>() {});

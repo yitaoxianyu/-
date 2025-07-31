@@ -259,6 +259,8 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
     @Override
     public IPage<ShortLinkAccessLogsRespDTO> showOneUrlLogs(ShortLinkAccessLogsReqDTO requestParams) {
         String gid = requestParams.getGid();
+        long size = requestParams.getSize();
+        System.out.println(size);
         String fullShortUrl = requestParams.getFullShortUrl();
         DateTime start = DateUtil.parse(requestParams.getStartDate());
         DateTime end = DateUtil.parse(requestParams.getEndDate());
