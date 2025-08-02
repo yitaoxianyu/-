@@ -50,6 +50,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.nageoffer.shortlink.project.common.constants.ShortLinkConstants.*;
+import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.CUSTOM;
 import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.PERMANENT;
 
 @Service
@@ -165,6 +166,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void updateShortLink(ShortLinkUpdateReqDTO requestParms) {
+        // 1. 参数校验：非永久类型时，validDate 必须非 null
+        Integer validDateType = requestParms.getValidDateType();
+        Date validDate = requestParms.getValidDate();
+        if (validDateType != null && !Objects.equals(validDateType, PERMANENT.getType())) {
+            // 非永久类型（如自定义），必须传入 validDate
+            if (validDate == null) {
+                throw new ClientException("非永久类型的短链接，有效期不能为空");
+            }
+        }
+
         //这里 gid 认为是不能更改的,sharding sphere中的分片键默认不能进行修改的,但是可以先删除再插入这样
         LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
                 .eq(ShortLinkDO::getFullShortUrl, requestParms.getFullShortUrl())
@@ -180,7 +191,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .eq(ShortLinkDO::getFullShortUrl, requestParms.getFullShortUrl())
                 .eq(ShortLinkDO::getDelFlag, 0)
                 .eq(ShortLinkDO::getEnableStatus, 1)
-                .set(Objects.equals(requestParms.getValidDateType(), PERMANENT.getType()), ShortLinkDO::getValidDate, null);
+                .set(Objects.equals(requestParms.getValidDateType(), PERMANENT.getType()), ShortLinkDO::getValidDate, null)
+                .set(Objects.equals(shortLinkInDB.getValidDateType(), PERMANENT.getType())
+                        && requestParms.getValidDateType() == null,
+                ShortLinkDO::getValidDate, null);
+
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
                 .originUrl(requestParms.getOriginUrl())
                 .describe(requestParms.getDescribe())
@@ -188,6 +203,35 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .validDate(requestParms.getValidDate())
                 .build();
         baseMapper.update(shortLinkDO,updateWrapper);
+        String fullShortUrl = requestParms.getFullShortUrl();
+        //跳转链接修改了
+        if(requestParms.getOriginUrl() != null && !Objects.equals(requestParms.getOriginUrl(),shortLinkInDB.getOriginUrl())){
+            stringRedisTemplate.delete(String.format(SHORT_LINK_GOTO_KEY,fullShortUrl));
+        }
+        else if(requestParms.getValidDateType() != null && Objects.equals(requestParms.getValidDateType(),PERMANENT.getType())){
+            //如果之前查数据库中的短链接过期了,则进行删除缓存
+            String originUrl = stringRedisTemplate.opsForValue().get(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
+            if(originUrl != null && originUrl.equals("-")) stringRedisTemplate.opsForValue().set(
+                    String.format(SHORT_LINK_GOTO_KEY, fullShortUrl),
+                    shortLinkInDB.getOriginUrl(),
+                    DEFAULT_CACHE_VALID_TIME,
+                    TimeUnit.SECONDS
+            );
+        }
+        else if(Objects.equals(requestParms.getValidDateType(),CUSTOM.getType())){
+            //如果设置的时间在当前时间之前,并且数据库中的没有短链接没有过期则进行删除缓存
+            String originUrl = stringRedisTemplate.opsForValue().get(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
+            if(requestParms.getValidDate().before(new Date())){
+                //如果之前查数据库中的短链接过期了,则进行删除缓存
+                if(originUrl != null && !originUrl.equals("-")) stringRedisTemplate.delete(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
+            }
+            //如果设置的时间在当前时间之后,并且查数据库中的短链接显示过期删除缓存
+            else {
+                if(originUrl != null && originUrl.equals("-")) stringRedisTemplate.delete(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
+            }
+        }
+
+
     }
 
     @Override
