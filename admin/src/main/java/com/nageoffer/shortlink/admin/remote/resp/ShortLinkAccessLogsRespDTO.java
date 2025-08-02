@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.Date;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -56,4 +58,6 @@ public class ShortLinkAccessLogsRespDTO {
      *  用户类型
      */
     private String uvType;
+
+    private Date createTime;
 }

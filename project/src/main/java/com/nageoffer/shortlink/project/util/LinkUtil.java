@@ -83,9 +83,9 @@ public class LinkUtil {
         };
         for (String keyword : mobileKeywords) {
             if (userAgent.contains(keyword)) {
-                return "mobile";
+                return "Mobile";
             }
         }
-        return "computer";
+        return "PC";
     }
 }

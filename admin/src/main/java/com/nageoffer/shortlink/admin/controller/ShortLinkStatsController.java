@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-// todo调用中台接口
 @RestController
 @RequestMapping("/api/short-link/admin/v1/stats")
 public class ShortLinkStatsController {
@@ -24,7 +23,7 @@ public class ShortLinkStatsController {
         return shortLinkRemoteService.showOneUrlStats(shortLinkStatsReqDTO);
     }
 
-    @GetMapping("/access-logs")
+    @GetMapping("/access-record")
     public Result<IPage<ShortLinkAccessLogsRespDTO>> showQueryOneUrlLogs(ShortLinkAccessLogsReqDTO shortLinkAccessLogsReqDTO){
         return shortLinkRemoteService.showOneUrlLogs(shortLinkAccessLogsReqDTO);
     }

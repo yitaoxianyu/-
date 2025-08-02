@@ -15,9 +15,11 @@ import com.nageoffer.shortlink.project.common.convention.exception.ClientExcepti
 import com.nageoffer.shortlink.project.common.convention.exception.ServiceException;
 import com.nageoffer.shortlink.project.dao.entity.*;
 import com.nageoffer.shortlink.project.dao.mapper.*;
+import com.nageoffer.shortlink.project.dto.req.ShortLinkBatchCreateReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
+import com.nageoffer.shortlink.project.dto.resp.ShortLinkBatchCreateRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkQueryCountDTO;
@@ -34,7 +36,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -50,7 +55,13 @@ import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.PER
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLinkDO> implements ShortLinkService {
+public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLinkDO> implements ShortLinkService, ApplicationContextAware {
+
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
+    }
+    private ApplicationContext applicationContext;
 
     private final ShortLinkMapper shortLinkMapper;
 
@@ -81,15 +92,19 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @Value("${short-link.api.locale-stats.key}")
     private String localeStatsKey;
 
+    @Value("${short-link.default-domain}")
+    private String defaultDomain;
+
+    //这个方法使用了 try-catch 不会造成事务失效因为捕获异常之后又抛出了
     @Override
     @Transactional
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParams) {
-        String suffix = generateSuffix(requestParams);
-
+        String domain = Optional.ofNullable(requestParams.getDomain()).orElse(defaultDomain);
+        String suffix = generateSuffix(requestParams,domain);
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
-                .domain(requestParams.getDomain())
+                .domain(domain)
                 .shortUri(suffix)
-                .fullShortUrl(requestParams.getDomain() + "/" + suffix)
+                .fullShortUrl(domain + "/" + suffix)
                 .originUrl(requestParams.getOriginUrl())
                 .gid(requestParams.getGid())
                 .describe(requestParams.getDescribe())
@@ -104,23 +119,23 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
         //这里不仅要插入短链接数据,还要插入跳转数据
         ShortLinkGotoDO shortLinkGotoDO = ShortLinkGotoDO.builder()
-                .fullShortUrl(requestParams.getDomain() + "/" + suffix)
+                .fullShortUrl(domain + "/" + suffix)
                 .gid(requestParams.getGid()).build();
         try {
             baseMapper.insert(shortLinkDO);
             shortLinkGotoMapper.insert(shortLinkGotoDO);
         }catch (DuplicateKeyException ex){
-            throw new ServiceException(String.format("短链接%s重复",requestParams.getDomain() + "/" + suffix));
+            throw new ServiceException(String.format("短链接%s重复",domain + "/" + suffix));
         }
         //缓存预热
         stringRedisTemplate.opsForValue().set(
-                String.format(SHORT_LINK_GOTO_KEY,requestParams.getDomain() + "/" + suffix),
+                String.format(SHORT_LINK_GOTO_KEY,domain + "/" + suffix),
                 requestParams.getOriginUrl(),
                 LinkUtil.getLinkCacheValidTime(requestParams.getValidDate()), TimeUnit.SECONDS
         );
-        shortUriCreateBloomFilter.add(requestParams.getDomain() + "/" + suffix);
+        shortUriCreateBloomFilter.add(domain + "/" + suffix);
         return ShortLinkCreateRespDTO.builder()
-                .fullShortUrl("http://" + requestParams.getDomain() + "/" + suffix)
+                .fullShortUrl("http://" + domain + "/" + suffix)
                 .originUrl(requestParams.getOriginUrl())
                 .gid(requestParams.getGid()).build();
     }
@@ -190,7 +205,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             httpServletResponse.sendRedirect(originUrl);
             return ;
         }
-        //缓存没有命中,考虑查询数据库之前使用布隆过滤器判断有没有
         if (!shortUriCreateBloomFilter.contains(fullShortUrl)) {
             httpServletResponse.sendRedirect("/page/notfound");
             return ;
@@ -262,6 +276,50 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         }finally{
             lock.unlock();
         }
+    }
+
+    @Override
+    public ShortLinkBatchCreateRespDTO batchCreateShortLink(ShortLinkBatchCreateReqDTO requestParams) {
+        //这里使用自注入避免事务注解失效
+        Integer createdType = requestParams.getCreatedType();
+        Integer validDateType = requestParams.getValidDateType();
+        Date validDate = requestParams.getValidDate();
+        String gid = requestParams.getGid();
+        String domain = requestParams.getDomain();
+        List<String> originUrls = requestParams.getOriginUrl();
+        List<String> describes = requestParams.getDescribe();
+
+        //这里使用代理对象
+        ShortLinkService proxy = applicationContext.getBean(ShortLinkService.class);
+        ShortLinkBatchCreateRespDTO shortLinkBatchCreateRespDTO = new ShortLinkBatchCreateRespDTO();
+        List<ShortLinkBatchCreateRespDTO.ShortLinkInfo> results = new ArrayList<>();
+        for (int i = 0;i < originUrls.size();i ++) {
+            ShortLinkCreateReqDTO shortLinkCreateReqDTO = ShortLinkCreateReqDTO.builder()
+                    .gid(gid)
+                    .domain(domain)
+                    .originUrl(originUrls.get(i))
+                    .validDate(validDate)
+                    .validDateType(validDateType)
+                    .createdType(createdType)
+                    .describe(describes.get(i))
+                    .build();
+            try{
+                ShortLinkCreateRespDTO shortLinkCreateRespDTO = proxy.createShortLink(shortLinkCreateReqDTO);
+                ShortLinkBatchCreateRespDTO.ShortLinkInfo e = ShortLinkBatchCreateRespDTO.ShortLinkInfo.builder()
+                        .fullShortUrl(shortLinkCreateRespDTO.getFullShortUrl())
+                        .originUrl(shortLinkCreateRespDTO.getOriginUrl())
+                        .describe(describes.get(i))
+                        .build();
+                results.add(e);
+            } catch (Exception e) {
+                log.info("短链接创建失败;{}",originUrls.get(i));
+            }
+        }
+        shortLinkBatchCreateRespDTO.setGid(gid);
+        shortLinkBatchCreateRespDTO.setTotal(results.size());
+        shortLinkBatchCreateRespDTO.setShortLinkInfoList(results);
+
+        return shortLinkBatchCreateRespDTO;
     }
 
     private void recordStats(String fullShortUrl,String gid,HttpServletRequest request,HttpServletResponse response){
@@ -414,18 +472,20 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         shortlinkAccessLogsMapper.insert(shortLinkAccessLogsDO);
     }
 
-    private String generateSuffix(ShortLinkCreateReqDTO requestParams){
+    private String generateSuffix(ShortLinkCreateReqDTO requestParams,String domain){
         int count = 0;
         String suffix;
         while(true){
             if(count == 10) throw new ServiceException("短链接创建繁忙");
             suffix = HashUtil.hashToBase62(requestParams.getOriginUrl() + System.currentTimeMillis());
 
-            if (!shortUriCreateBloomFilter.contains(requestParams.getDomain() + "/" + suffix)) {
+            if (!shortUriCreateBloomFilter.contains(domain + "/" + suffix)) {
                 break;
             }
             count ++;
         }
         return suffix;
     }
+
+
 }

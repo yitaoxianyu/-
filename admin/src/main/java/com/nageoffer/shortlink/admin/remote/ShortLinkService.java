@@ -25,12 +25,21 @@ public interface ShortLinkService {
         map.put("size",requestParams.getSize());
 
         String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/page", map);
-        return JSONObject.parseObject(jsonStr, new TypeReference<Result<IPage<ShortLinkPageRespDTO>>>() {});
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {
+        });
     }
 
     default Result<ShortLinkCreateRespDTO> createShortLink(ShortLinkCreateReqDTO requestParams){
         String jsonStr = HttpUtil.post(
                 "http://localhost:8002/api/short-link/v1/create",
+                JSONObject.toJSONString(requestParams)
+        );
+        return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
+    }
+
+    default Result<ShortLinkBatchCreateRespDTO> batchCreateShortLink(ShortLinkBatchCreateReqDTO requestParams){
+        String jsonStr = HttpUtil.post(
+                "http://localhost:8002/api/short-link/v1/create/batch",
                 JSONObject.toJSONString(requestParams)
         );
         return JSONObject.parseObject(jsonStr, new TypeReference<>() {});
@@ -127,7 +136,7 @@ public interface ShortLinkService {
         map.put("endDate",requestParams.getEndDate());
         map.put("current",requestParams.getCurrent());
         map.put("size",requestParams.getSize());
-        String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/stats/access-logs",
+        String jsonStr = HttpUtil.get("http://localhost:8002/api/short-link/v1/stats/access-record",
                 map
         );
 

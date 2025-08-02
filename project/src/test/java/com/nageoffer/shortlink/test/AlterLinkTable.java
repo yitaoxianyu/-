@@ -24,9 +24,11 @@ public class AlterLinkTable {
             "    row_format = DYNAMIC;\n" +
             "\n";
 
+    static final String ALTER_T_LINK_GOTO = "ALTER TABLE t_link_goto_%d DROP INDEX gid;\n";
+
     public static void main(String[] args) {
         for (int i = 0; i < 16; i++) {
-            System.out.printf(STATS_TODAY_SQL,i);
+            System.out.printf(ALTER_T_LINK_GOTO,i);
         }
     }
 }

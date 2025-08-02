@@ -1,18 +1,14 @@
-package com.nageoffer.shortlink.project.dto.req;
+package com.nageoffer.shortlink.admin.remote.req;
+
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 @Data
-public class ShortLinkCreateReqDTO {
+public class ShortLinkBatchCreateReqDTO {
 
     /**
      * 域名这里使用默认
@@ -24,7 +20,7 @@ public class ShortLinkCreateReqDTO {
      * 原始链接
      */
 
-    private String originUrl;
+    private List<String> originUrl;
 
     /**
      * 分组标识
@@ -58,7 +54,7 @@ public class ShortLinkCreateReqDTO {
      * 描述
      */
 
-    private String describe;
+    private List<String> describe;
 
     private String favicon;
 

@@ -27,7 +27,7 @@ public class ShortLinkStatsController {
     }
 
     //分页查询单个短链接的日志信息
-    @GetMapping("/access-logs")
+    @GetMapping("/access-record")
     public Result<IPage<ShortLinkAccessLogsRespDTO>> showQueryOneUrlLogs(ShortLinkAccessLogsReqDTO requestParams){
         return Results.success(shortLinkStatsService.showOneUrlLogs(requestParams));
     }
