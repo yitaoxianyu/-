@@ -111,4 +111,16 @@ public class ShortLinkDO extends DatabaseDO implements Serializable {
 
     private String favicon;
 
+    private Integer totalPv;
+
+    private Integer totalUv;
+
+    private Integer totalUip;
+
+    private Integer todayPv;
+
+    private Integer todayUv;
+
+    private Integer todayUip;
+
 }

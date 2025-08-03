@@ -126,4 +126,6 @@ public class ShortLinkDO extends DatabaseDO implements Serializable {
     @TableField(exist = false)
     private Integer todayUip;
 
+    private Long delTime;
+
 }

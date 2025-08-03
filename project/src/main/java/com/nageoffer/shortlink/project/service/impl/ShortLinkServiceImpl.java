@@ -33,6 +33,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -45,12 +48,13 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static com.nageoffer.shortlink.project.common.constants.ShortLinkConstants.*;
-import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.CUSTOM;
 import static com.nageoffer.shortlink.project.common.enums.ValidDateTypeEnum.PERMANENT;
 
 @Service
@@ -175,11 +179,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 throw new ClientException("非永久类型的短链接，有效期不能为空");
             }
         }
-
-        //这里 gid 认为是不能更改的,sharding sphere中的分片键默认不能进行修改的,但是可以先删除再插入这样
+        //sharding sphere中的分片键默认不能进行修改的,但是可以先删除再插入这样
         LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
                 .eq(ShortLinkDO::getFullShortUrl, requestParms.getFullShortUrl())
-                .eq(ShortLinkDO::getGid, requestParms.getGid())
+                .eq(ShortLinkDO::getGid, requestParms.getOriginalGid())
                 .eq(ShortLinkDO::getDelFlag, 0)
                 .eq(ShortLinkDO::getEnableStatus, 1);
 
@@ -187,50 +190,45 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         if (shortLinkInDB == null) {
             throw new ClientException("短链接不存在");
         }
-        LambdaUpdateWrapper<ShortLinkDO> updateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
-                .eq(ShortLinkDO::getFullShortUrl, requestParms.getFullShortUrl())
-                .eq(ShortLinkDO::getDelFlag, 0)
-                .eq(ShortLinkDO::getEnableStatus, 1)
-                .set(Objects.equals(requestParms.getValidDateType(), PERMANENT.getType()), ShortLinkDO::getValidDate, null)
-                .set(Objects.equals(shortLinkInDB.getValidDateType(), PERMANENT.getType())
-                        && requestParms.getValidDateType() == null,
-                ShortLinkDO::getValidDate, null);
 
-        ShortLinkDO shortLinkDO = ShortLinkDO.builder()
-                .originUrl(requestParms.getOriginUrl())
-                .describe(requestParms.getDescribe())
-                .validDateType(requestParms.getValidDateType())
-                .validDate(requestParms.getValidDate())
-                .build();
-        baseMapper.update(shortLinkDO,updateWrapper);
+        if(requestParms.getTargetGid() == null || Objects.equals(requestParms.getTargetGid(),shortLinkInDB.getGid())){
+            //证明不想更改分组直接在原来数据修改
+            LambdaUpdateWrapper<ShortLinkDO> updateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
+                    .eq(ShortLinkDO::getFullShortUrl, requestParms.getFullShortUrl())
+                    .eq(ShortLinkDO::getDelFlag, 0)
+                    .eq(ShortLinkDO::getEnableStatus, 1)
+                    .set(Objects.equals(requestParms.getValidDateType(), PERMANENT.getType()), ShortLinkDO::getValidDate, null)
+                    .set(Objects.equals(shortLinkInDB.getValidDateType(), PERMANENT.getType())
+                                    && requestParms.getValidDateType() == null,
+                            ShortLinkDO::getValidDate, null);
+
+            ShortLinkDO shortLinkDO = ShortLinkDO.builder()
+                    .originUrl(requestParms.getOriginUrl())
+                    .describe(requestParms.getDescribe())
+                    .validDateType(requestParms.getValidDateType())
+                    .validDate(requestParms.getValidDate())
+                    .favicon(Objects.equals(requestParms.getOriginUrl(),shortLinkInDB.getOriginUrl()) ? null : getFavicon(requestParms.getOriginUrl()))
+                    .build();
+            baseMapper.update(shortLinkDO, updateWrapper);
+        } else {
+            LambdaUpdateWrapper<ShortLinkDO> linkUpdateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
+                    .eq(ShortLinkDO::getFullShortUrl, requestParms.getFullShortUrl())
+                    .eq(ShortLinkDO::getGid, shortLinkInDB.getGid())
+                    .eq(ShortLinkDO::getDelFlag, 0)
+                    .eq(ShortLinkDO::getDelTime, 0L)
+                    .eq(ShortLinkDO::getEnableStatus, 0);
+            ShortLinkDO delShortLinkDO = ShortLinkDO.builder()
+                    .delTime(System.currentTimeMillis())
+                    .build();
+            delShortLinkDO.setDelFlag(1);
+            baseMapper.update(delShortLinkDO, linkUpdateWrapper);
+
+        }
+
+
         String fullShortUrl = requestParms.getFullShortUrl();
         //跳转链接修改了
-        if(requestParms.getOriginUrl() != null && !Objects.equals(requestParms.getOriginUrl(),shortLinkInDB.getOriginUrl())){
-            stringRedisTemplate.delete(String.format(SHORT_LINK_GOTO_KEY,fullShortUrl));
-        }
-        else if(requestParms.getValidDateType() != null && Objects.equals(requestParms.getValidDateType(),PERMANENT.getType())){
-            //如果之前查数据库中的短链接过期了,则进行删除缓存
-            String originUrl = stringRedisTemplate.opsForValue().get(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
-            if(originUrl != null && originUrl.equals("-")) stringRedisTemplate.opsForValue().set(
-                    String.format(SHORT_LINK_GOTO_KEY, fullShortUrl),
-                    shortLinkInDB.getOriginUrl(),
-                    DEFAULT_CACHE_VALID_TIME,
-                    TimeUnit.SECONDS
-            );
-        }
-        else if(Objects.equals(requestParms.getValidDateType(),CUSTOM.getType())){
-            //如果设置的时间在当前时间之前,并且数据库中的没有短链接没有过期则进行删除缓存
-            String originUrl = stringRedisTemplate.opsForValue().get(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
-            if(requestParms.getValidDate().before(new Date())){
-                //如果之前查数据库中的短链接过期了,则进行删除缓存
-                if(originUrl != null && !originUrl.equals("-")) stringRedisTemplate.delete(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
-            }
-            //如果设置的时间在当前时间之后,并且查数据库中的短链接显示过期删除缓存
-            else {
-                if(originUrl != null && originUrl.equals("-")) stringRedisTemplate.delete(String.format(SHORT_LINK_GOTO_KEY, fullShortUrl));
-            }
-        }
-
+        //todo 逻辑不太对
 
     }
 
@@ -529,6 +527,23 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             count ++;
         }
         return suffix;
+    }
+
+    @SneakyThrows
+    private String getFavicon(String url) {
+        URL targetUrl = new URL(url);
+        HttpURLConnection connection = (HttpURLConnection) targetUrl.openConnection();
+        connection.setRequestMethod("GET");
+        connection.connect();
+        int responseCode = connection.getResponseCode();
+        if (HttpURLConnection.HTTP_OK == responseCode) {
+            Document document = Jsoup.connect(url).get();
+            Element faviconLink = document.select("link[rel~=(?i)^(shortcut )?icon]").first();
+            if (faviconLink != null) {
+                return faviconLink.attr("abs:href");
+            }
+        }
+        return null;
     }
 
 

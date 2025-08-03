@@ -6,4 +6,6 @@ public class UserConstants {
 
     public static final String USER_LOGIN = "short-link:user-login:";
 
+    public static final String LOCK_SAVE_GROUP = "short-link:lock_save-group:";
+
 }
