@@ -1,12 +1,13 @@
 package com.nageoffer.shortlink.project.dao.mapper;
 
 import cn.hutool.core.date.DateTime;
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.nageoffer.shortlink.project.dao.entity.ShortLinkNetworkStatsDO;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
-public interface ShortLinkNetworkStatsMapper {
+public interface ShortLinkNetworkStatsMapper extends BaseMapper<ShortLinkNetworkStatsDO> {
 
 
     int insertStatsOrUpdate(ShortLinkNetworkStatsDO shortLinkNetworkStatsDO);

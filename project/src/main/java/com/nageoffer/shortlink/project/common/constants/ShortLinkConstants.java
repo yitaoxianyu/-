@@ -19,4 +19,6 @@ public class ShortLinkConstants {
 
     public static final String SHORT_LINK_IP_KEY = "short-link:stats:ip:";
 
+    public static final String LOCK_GID_UPDATE_KEY = "short-link:lock:update-gid:%s";
+
 }

@@ -13,9 +13,12 @@ public class ShortLinkUpdateReqDTO {
      */
     private String describe;
     /**
-     * 分组
+     * 原来的分组
      */
-    private String gid;
+    private String originalGid;
+
+    private String targetGid;
+
     /**
      * 原始链接
      */

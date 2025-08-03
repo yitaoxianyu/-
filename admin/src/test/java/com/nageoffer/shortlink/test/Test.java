@@ -17,9 +17,13 @@ public class Test {
             "  UNIQUE KEY `idx_unique_username` (`username`) USING BTREE\n" +
             ") ENGINE=InnoDB AUTO_INCREMENT=1715030926162935810 DEFAULT CHARSET=utf8mb4;";
 
+    private static final String CHANGE_GROUP_INDEX_SQL = "drop index idx_unique_full_short_url on t_link_%d;\n" +
+            "\n" +
+            "create unique index idx_unique_full_short_url\n" +
+            "    on t_link_%d (full_short_url, del_time);";
     public static void main(String[] args) {
         for (int i = 0; i < 16; i++) {
-            System.out.printf((SQL) + "%n", i);
+            System.out.printf((CHANGE_GROUP_INDEX_SQL), i,i);
         }
     }
 }
