@@ -2,7 +2,6 @@ package com.nageoffer.shortlink.project.mq;
 
 import com.nageoffer.shortlink.project.common.constants.ShortLinkConstants;
 import com.nageoffer.shortlink.project.dto.resp.stats.ShortLinkStatsRecordDTO;
-import com.nageoffer.shortlink.project.service.ShortLinkService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBlockingDeque;
 import org.redisson.api.RDelayedQueue;
@@ -14,8 +13,6 @@ import java.util.concurrent.TimeUnit;
 @Component
 @RequiredArgsConstructor
 public class DelayShortLinkStatsProducer {
-
-    private final ShortLinkService shortLinkService;
 
     private final RedissonClient redissonClient;
 
