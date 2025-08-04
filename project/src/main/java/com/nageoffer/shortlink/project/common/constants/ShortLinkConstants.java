@@ -19,6 +19,10 @@ public class ShortLinkConstants {
 
     public static final String SHORT_LINK_IP_KEY = "short-link:stats:ip:";
 
+    //更新短链接时使用的读写锁 key
     public static final String LOCK_GID_UPDATE_KEY = "short-link:lock:update-gid:%s";
+
+    //更新短链接如果获取读锁失败放到 redis 延迟队列中
+    public static final String DELAY_QUEUE_STATS_KEY = "short-link:delay-queue:stats";
 
 }
