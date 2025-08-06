@@ -33,7 +33,6 @@ public class DelayShortLinkStatsConsumer implements InitializingBean {
             thread.setName("delay_short-link_stats_consumer");
             return thread;
         }).execute(() -> {
-            RBlockingDeque<ShortLinkStatsRecordDTO> blockingDeque = redissonClient.getBlockingDeque(DELAY_QUEUE_STATS_KEY);
             RBlockingDeque<ShortLinkStatsRecordDTO> delayQueue = redissonClient.getBlockingDeque(DELAY_QUEUE_STATS_KEY);
             for(;;){
                 try {

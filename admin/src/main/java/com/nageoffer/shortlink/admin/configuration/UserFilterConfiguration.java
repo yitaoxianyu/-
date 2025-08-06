@@ -3,6 +3,7 @@ package com.nageoffer.shortlink.admin.configuration;
 import com.nageoffer.shortlink.admin.common.biz.user.UserFlowControlFilter;
 import com.nageoffer.shortlink.admin.common.biz.user.UserFlowControlProperties;
 import com.nageoffer.shortlink.admin.common.biz.user.UserTransmitFilter;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,7 +24,7 @@ public class UserFilterConfiguration {
     }
 
     @Bean
-//    @ConditionalOnProperty(name = "short-link.flow-limit.enable", havingValue = "true")
+    @ConditionalOnProperty(name = "short-link.user-flow-control.enable", havingValue = "true")
     public FilterRegistrationBean<UserFlowControlFilter> globalUserFlowRiskControlFilter(
             StringRedisTemplate stringRedisTemplate,
             UserFlowControlProperties userFlowRiskControlProperties) {

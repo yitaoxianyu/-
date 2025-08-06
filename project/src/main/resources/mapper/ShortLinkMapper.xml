@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
 <mapper namespace="com.nageoffer.shortlink.project.dao.mapper.ShortLinkMapper">
+    <update id="recordUvPvUip">
+        update t_link
+            set total_uv = total_uv + #{uv},
+            total_pv = total_pv + #{pv},
+            total_uip = total_uip + #{uip}
+        where full_short_url = #{fullShortUrl} and gid = #{gid}
+    </update>
     <select id="pageQuery" resultType="com.nageoffer.shortlink.project.dao.entity.ShortLinkDO">
         select t1.*,
                COALESCE(today_pv, 0) as today_pv,
