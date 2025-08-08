@@ -1,8 +1,12 @@
 server:
   port: 8002
 
-
 spring:
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
+  application:
+    name: short-link
   rabbitmq:
     host: localhost
     port: 5672
@@ -24,8 +28,6 @@ spring:
       port: 6379
       host: localhost
       password: 198311
-  profiles:
-    active: public
 
 short-link:
   default-domain: nurl.ink

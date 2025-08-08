@@ -14,7 +14,7 @@ import com.nageoffer.shortlink.admin.dao.mapper.GroupMapper;
 import com.nageoffer.shortlink.admin.dto.req.GroupSortDTO;
 import com.nageoffer.shortlink.admin.dto.req.GroupUpdateReqDTO;
 import com.nageoffer.shortlink.admin.dto.resp.GroupRespDTO;
-import com.nageoffer.shortlink.admin.remote.ShortLinkService;
+import com.nageoffer.shortlink.admin.remote.ShortLinkActualService;
 import com.nageoffer.shortlink.admin.remote.resp.ShortLinkQueryCountRespDTO;
 import com.nageoffer.shortlink.admin.service.GroupService;
 import com.nageoffer.shortlink.admin.util.BeanUtil;
@@ -31,7 +31,7 @@ import java.util.Objects;
 @RequiredArgsConstructor
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
 
-    private static final ShortLinkService shortLinkService = new ShortLinkService() {};
+    private final ShortLinkActualService shortLinkActualService;
 
     private final RedissonClient redissonClient;
 
@@ -79,7 +79,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
         //查询每个分组的短链数量
         List<String> gids = groupDOS.stream().map(GroupDO::getGid).toList();
-        List<ShortLinkQueryCountRespDTO> countList = shortLinkService.queryShortLinkCount(gids).getData();
+        List<ShortLinkQueryCountRespDTO> countList = shortLinkActualService.queryShortLinkCount(gids).getData();
 
         groupDOS.forEach(group -> {
             countList.stream()

@@ -1,11 +1,11 @@
 package com.nageoffer.shortlink.admin.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.nageoffer.shortlink.admin.common.biz.user.UserContext;
 import com.nageoffer.shortlink.admin.common.convention.result.Result;
 import com.nageoffer.shortlink.admin.dao.entity.GroupDO;
 import com.nageoffer.shortlink.admin.dto.req.RecoverShortLinkReqDTO;
-import com.nageoffer.shortlink.admin.remote.ShortLinkService;
+import com.nageoffer.shortlink.admin.remote.ShortLinkActualService;
 import com.nageoffer.shortlink.admin.remote.req.RecycleBinPageReqDTO;
 import com.nageoffer.shortlink.admin.remote.req.RemoveShortLinkReqDTO;
 import com.nageoffer.shortlink.admin.remote.req.SaveShortLinkReqDTO;
@@ -21,16 +21,16 @@ import java.util.List;
 @RequestMapping("/api/short-link/admin/v1/recycle-bin")
 public class RecycleBinController {
 
-    private final GroupService groupService;
+    private final ShortLinkActualService shortLinkActualService;
 
-    private static final ShortLinkService shortLinkRemoteService = new ShortLinkService() {};
+    private final GroupService groupService;
 
     @PostMapping("/save")
     public Result<Void> saveShortLink2RecycleBin(@RequestBody SaveShortLinkReqDTO requestParams){
-        return shortLinkRemoteService.saveShortLink2RecycleBin(requestParams);
+        return shortLinkActualService.saveShortLink2RecycleBin(requestParams);
     }
     @GetMapping("/page")
-    public Result<IPage<RecycleBinPageRespDTO>> pageQueryShortLink(RecycleBinPageReqDTO requestParams){
+    public Result<Page<RecycleBinPageRespDTO>> pageQueryShortLink(RecycleBinPageReqDTO requestParams){
         String username = UserContext.getUsername();
         List<String> gids = groupService.query().select("gid")
                 .eq("username", username)
@@ -40,16 +40,16 @@ public class RecycleBinController {
                 .map(GroupDO::getGid)
                 .toList();
         requestParams.setGids(gids);
-        return shortLinkRemoteService.pageQueryShortLink(requestParams);
+        return shortLinkActualService.pageQueryShortLink(requestParams);
     }
 
     @PostMapping("/recover")
     public Result<Void> recoverShortLink(@RequestBody RecoverShortLinkReqDTO requestParams){
-        return shortLinkRemoteService.recoverShortLink(requestParams);
+        return shortLinkActualService.recoverShortLink(requestParams);
     }
 
     @PostMapping("/remove")
     public Result<Void> removeShortLink(@RequestBody RemoveShortLinkReqDTO requestParams){
-        return shortLinkRemoteService.removeShortLink(requestParams);
+        return shortLinkActualService.removeShortLink(requestParams);
     }
 }

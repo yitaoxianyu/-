@@ -1,6 +1,11 @@
 server:
   port: 8001
 spring:
+  application:
+    name: short-link-admin
+  cloud:
+    nacos:
+      server-addr: 127.0.0.1:8848
   rabbitmq:
     host: localhost
     port: 5672
