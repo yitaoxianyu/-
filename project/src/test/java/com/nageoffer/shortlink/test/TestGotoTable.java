@@ -13,8 +13,11 @@ public class TestGotoTable {
 
 
     public static void main(String[] args) {
-        for (int i = 0; i < 16; i++) {
-            System.out.printf(SQL,i);
+        try{
+            throw new RuntimeException("故意的");
+        }catch (Exception e){
+
         }
+        System.out.println("走到了最后一行");
     }
 }

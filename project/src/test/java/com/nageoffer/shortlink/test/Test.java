@@ -1,9 +1,11 @@
 package com.nageoffer.shortlink.test;
+
 import com.nageoffer.shortlink.project.ShortLinkProjectApplication;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(classes = ShortLinkProjectApplication.class)
 public class Test {
+
 
     public static void main(String[] args) {
         for (int i = 0; i < 16; i++) {
@@ -48,5 +50,6 @@ public class Test {
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;;\n",i);
         }
     }
+
 
 }

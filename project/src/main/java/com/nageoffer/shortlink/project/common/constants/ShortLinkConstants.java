@@ -25,4 +25,7 @@ public class ShortLinkConstants {
     //更新短链接如果获取读锁失败放到 redis 延迟队列中
     public static final String DELAY_QUEUE_STATS_KEY = "short-link:delay-queue:stats";
 
+    public static final String MQ_STATS_EXCHANGE = "direct.short-link";
+    public static final String MQ_STATS_QUEUE = "short-link.stats.queue";
+    public static final String MQ_STATS_ROUTING_KEY = "stats";
 }
