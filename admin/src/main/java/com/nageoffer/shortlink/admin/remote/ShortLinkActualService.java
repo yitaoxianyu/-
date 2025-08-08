@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
-@FeignClient(value = "short-link",path = "/api/short-link/v1")
+@FeignClient(value = "short-link-project",path = "/api/short-link/v1")
 public interface ShortLinkActualService{
 
     @GetMapping("/page")

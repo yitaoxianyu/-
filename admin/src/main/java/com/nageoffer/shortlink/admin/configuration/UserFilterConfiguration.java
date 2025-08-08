@@ -15,9 +15,9 @@ import java.util.Collections;
 public class UserFilterConfiguration {
 
     @Bean
-    public FilterRegistrationBean<UserTransmitFilter> userFilter(StringRedisTemplate stringRedisTemplate){
+    public FilterRegistrationBean<UserTransmitFilter> userFilter(){
         FilterRegistrationBean<UserTransmitFilter> registrationBean = new FilterRegistrationBean<>();
-        registrationBean.setFilter(new UserTransmitFilter(stringRedisTemplate));
+        registrationBean.setFilter(new UserTransmitFilter());
         registrationBean.setUrlPatterns(Collections.singleton("/*"));
         registrationBean.setOrder(0);
         return registrationBean;

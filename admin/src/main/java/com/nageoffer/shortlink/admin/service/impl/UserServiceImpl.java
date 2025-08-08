@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.nageoffer.shortlink.admin.common.biz.user.UserContext;
+import com.nageoffer.shortlink.admin.common.biz.user.UserInfoDTO;
 import com.nageoffer.shortlink.admin.common.convention.exception.ClientException;
 import com.nageoffer.shortlink.admin.dao.entity.UserDO;
 import com.nageoffer.shortlink.admin.dao.mapper.UserMapper;
@@ -125,8 +126,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
 
 
         String token = UUID.randomUUID().toString();
+        //这里转换一下,不暴露重要信息
+        UserInfoDTO userInfoDTO = new UserInfoDTO(userDO.getUsername(),userDO.getRealName(),userDO.getId().toString());
         stringRedisTemplate.opsForHash().put(USER_LOGIN + requestParams.getUsername(),
-                 token,JSONObject.toJSONString(userDO));
+                 token,JSONObject.toJSONString(userInfoDTO));
         stringRedisTemplate.expire(USER_LOGIN + requestParams.getUsername(),30, TimeUnit.MINUTES);
 
         return new UserLoginRespDTO(token);

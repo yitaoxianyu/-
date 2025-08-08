@@ -6,7 +6,7 @@ spring:
     nacos:
       server-addr: 127.0.0.1:8848
   application:
-    name: short-link
+    name: short-link-project
   rabbitmq:
     host: localhost
     port: 5672
