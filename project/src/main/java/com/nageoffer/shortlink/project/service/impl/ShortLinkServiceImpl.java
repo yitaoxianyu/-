@@ -410,7 +410,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 return;
             }
             ShortLinkStatsRecordDTO shortLinkStatsRecordDTO = buildShortLinkStatsRecordDTO(httpServletRequest, httpServletResponse, fullShortUrl);
-            recordStats(fullShortUrl, null, shortLinkStatsRecordDTO);
+            recordStats(fullShortUrl, shortLinkStatsRecordDTO);
             httpServletResponse.sendRedirect(originUrl);
             return;
         }
@@ -431,7 +431,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     return;
                 }
                 ShortLinkStatsRecordDTO shortLinkStatsRecordDTO = buildShortLinkStatsRecordDTO(httpServletRequest, httpServletResponse, fullShortUrl);
-                recordStats(fullShortUrl, null, shortLinkStatsRecordDTO);
+                recordStats(fullShortUrl, shortLinkStatsRecordDTO);
                 httpServletResponse.sendRedirect(originUrl);
                 return;
             }
@@ -482,7 +482,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             );
             //进行跳转并且更新更新数据
             ShortLinkStatsRecordDTO shortLinkStatsRecordDTO = buildShortLinkStatsRecordDTO(httpServletRequest, httpServletResponse, fullShortUrl);
-            recordStats(shortLinkInDB.getFullShortUrl(), shortLinkInDB.getGid(), shortLinkStatsRecordDTO);
+            recordStats(shortLinkInDB.getFullShortUrl(),shortLinkStatsRecordDTO);
             httpServletResponse.sendRedirect(originUrl);
         } finally {
             lock.unlock();
@@ -533,7 +533,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         return shortLinkBatchCreateRespDTO;
     }
 
-    public void recordStats(String fullShortUrl, String gid, ShortLinkStatsRecordDTO shortLinkStatsRecordDTO) {
+    public void recordStats(String fullShortUrl,ShortLinkStatsRecordDTO shortLinkStatsRecordDTO) {
         RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(String.format(LOCK_GID_UPDATE_KEY, fullShortUrl));
         RLock rLock = readWriteLock.readLock();
         if (!rLock.tryLock()) {
@@ -544,7 +544,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         try{
             Map<String, String> map = new HashMap<>();
             map.put("fullShortUrl", fullShortUrl);
-            map.put("gid", gid);
             map.put("shortLinkStatsRecordDTO", JSONObject.toJSONString(shortLinkStatsRecordDTO));
             shortLinkSaveProducer.sendMessage(map);
         }finally {

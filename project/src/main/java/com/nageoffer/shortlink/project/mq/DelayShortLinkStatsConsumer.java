@@ -38,7 +38,7 @@ public class DelayShortLinkStatsConsumer implements InitializingBean {
                 try {
                     ShortLinkStatsRecordDTO shortLinkStatsRecordDTO = delayQueue.poll();
                     if (shortLinkStatsRecordDTO != null) {
-                        shortLinkService.recordStats(null, null, shortLinkStatsRecordDTO);
+                        shortLinkService.recordStats(null, shortLinkStatsRecordDTO);
                         continue;
                     }
                     LockSupport.parkUntil(500);

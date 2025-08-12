@@ -25,6 +25,7 @@ import lombok.SneakyThrows;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -87,7 +88,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             //给用户添加一个默认分组
             groupService.saveGroup("默认分组",username);
             userRegisterCachePenetrationBloomFilter.add(username);
-        }finally {
+        }catch(DuplicateKeyException duplicateKeyException){
+            throw new ClientException(USER_NAME_EXIST);
+        }
+        finally {
             lock.unlock();
         }
     }

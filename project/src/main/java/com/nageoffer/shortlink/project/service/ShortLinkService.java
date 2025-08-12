@@ -31,6 +31,6 @@ public interface ShortLinkService {
 
     ShortLinkBatchCreateRespDTO batchCreateShortLink(ShortLinkBatchCreateReqDTO requestParams);
 
-    void recordStats(String fullShortUrl, String gid, ShortLinkStatsRecordDTO shortLinkStatsRecordDTO);
+    void recordStats(String fullShortUrl, ShortLinkStatsRecordDTO shortLinkStatsRecordDTO);
 
 }

@@ -62,22 +62,21 @@ public class ShortLinkSaveConsumer implements RocketMQListener<Map<String,String
             if(idempotentUtil.isAccomplish(keys)) return ;
             throw new ServiceException("消息消费失败,需要重新投递");
         }
-        String gid = map.get("gid");
         String fullShortUrl = map.get("fullShortUrl");
+        String gid;
         ShortLinkStatsRecordDTO shortLinkStatsRecordDTO = JSONObject.parseObject(map.get("shortLinkStatsRecordDTO"), new TypeReference<>() {
         });
         try { //填充 fullShortUrl
             if (StrUtil.isBlank(fullShortUrl)) {
                 fullShortUrl = shortLinkStatsRecordDTO.getFullShortUrl();
             }
-            String originIp = shortLinkStatsRecordDTO.getRemoteAddr();
             //填充 gid 字段
-            if (StrUtil.isBlank(gid)) {
-                LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
-                        .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
-                ShortLinkGotoDO shortLinkGotoInDB = shortLinkGotoMapper.selectOne(queryWrapper);
-                gid = shortLinkGotoInDB.getGid();
-            }
+            LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
+                    .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
+            ShortLinkGotoDO shortLinkGotoInDB = shortLinkGotoMapper.selectOne(queryWrapper);
+            gid = shortLinkGotoInDB.getGid();
+
+            String originIp = shortLinkStatsRecordDTO.getRemoteAddr();
             Date date = new Date();
             //根据 ip查询地址数据
             HashMap<String, Object> params = new HashMap<>();
