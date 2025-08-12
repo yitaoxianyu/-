@@ -27,7 +27,7 @@ public class ShortLinkController {
 
     @PostMapping("/api/short-link/v1/create")
     public Result<ShortLinkCreateRespDTO> createShortLink(@RequestBody ShortLinkCreateReqDTO requestParams){
-        return Results.success(shortLinkService.createShortLink(requestParams));
+        return Results.success(shortLinkService.createShortLinkByLock(requestParams));
     }
 
     @PostMapping("/api/short-link/v1/create/batch")

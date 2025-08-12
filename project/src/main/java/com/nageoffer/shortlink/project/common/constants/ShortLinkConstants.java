@@ -10,6 +10,8 @@ public class ShortLinkConstants {
     //用来更新上面 key 缓存的锁的键
     public static final String LOCK_SHORT_LINK_GOTO_KEY = "short-link:lock:goto:%s";
 
+    public static final String LOCK_SHORT_LINK_CREATE_KEY = "short-link:lock:create";
+
     //单位是秒
     public static final long DEFAULT_CACHE_VALID_TIME = 2628000;
 
@@ -28,4 +30,6 @@ public class ShortLinkConstants {
     public static final String MQ_STATS_EXCHANGE = "direct.short-link";
     public static final String MQ_STATS_QUEUE = "short-link.stats.queue";
     public static final String MQ_STATS_ROUTING_KEY = "stats";
+
+
 }

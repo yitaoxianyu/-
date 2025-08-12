@@ -18,6 +18,9 @@ import java.util.List;
 public interface ShortLinkService {
     ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParams);
 
+    ShortLinkCreateRespDTO createShortLinkByLock(ShortLinkCreateReqDTO requestParams);
+
+
     IPage<ShortLinkPageRespDTO> pageQuery(ShortLinkPageReqDTO requestParams);
 
     List<ShortLinkQueryCountDTO> queryShortLinkCount(List<String> requestParams);

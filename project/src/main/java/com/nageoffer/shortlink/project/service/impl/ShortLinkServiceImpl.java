@@ -23,6 +23,8 @@ import com.nageoffer.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.nageoffer.shortlink.project.dto.resp.ShortLinkQueryCountDTO;
 import com.nageoffer.shortlink.project.dto.resp.stats.ShortLinkStatsRecordDTO;
 import com.nageoffer.shortlink.project.mq.DelayShortLinkStatsProducer;
+import com.nageoffer.shortlink.project.mq.ShortLinkSaveConsumer;
+import com.nageoffer.shortlink.project.mq.ShortLinkSaveProducer;
 import com.nageoffer.shortlink.project.service.ShortLinkService;
 import com.nageoffer.shortlink.project.service.ShortLinkStatsTodayService;
 import com.nageoffer.shortlink.project.util.BeanUtil;
@@ -41,7 +43,6 @@ import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RReadWriteLock;
 import org.redisson.api.RedissonClient;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
@@ -102,10 +103,14 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     private final DelayShortLinkStatsProducer delayShortLinkStatsProducer;
 
-    private final RabbitTemplate rabbitTemplate;
+    private final ShortLinkSaveConsumer shortLinkSaveConsumer;
+
+    private final ShortLinkSaveProducer shortLinkSaveProducer;
 
     @Value("${short-link.default-domain}")
     private String defaultDomain;
+
+
 
     //这个方法使用了 try-catch 不会造成事务失效因为捕获异常之后又抛出了
     @Override
@@ -140,13 +145,64 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         } catch (DuplicateKeyException ex) {
             throw new ServiceException(String.format("短链接%s重复", domain + "/" + suffix));
         }
-        //缓存预热
+//        缓存预热
         stringRedisTemplate.opsForValue().set(
                 String.format(SHORT_LINK_GOTO_KEY, domain + "/" + suffix),
                 requestParams.getOriginUrl(),
                 LinkUtil.getLinkCacheValidTime(requestParams.getValidDate()), TimeUnit.SECONDS
         );
         shortUriCreateBloomFilter.add(domain + "/" + suffix);
+        return ShortLinkCreateRespDTO.builder()
+                .fullShortUrl("http://" + domain + "/" + suffix)
+                .originUrl(requestParams.getOriginUrl())
+                .gid(requestParams.getGid()).build();
+    }
+
+    @Override
+    @Transactional
+    public ShortLinkCreateRespDTO createShortLinkByLock(ShortLinkCreateReqDTO requestParams) {
+        String domain = Optional.ofNullable(requestParams.getDomain()).orElse(defaultDomain);
+        String suffix = generateSuffixByLock(requestParams, domain);
+        RLock lock = redissonClient.getLock(LOCK_SHORT_LINK_CREATE_KEY);
+        lock.lock();
+        try{
+            ShortLinkDO shortLinkDO = ShortLinkDO.builder()
+                    .domain(domain)
+                    .shortUri(suffix)
+                    .fullShortUrl(domain + "/" + suffix)
+                    .originUrl(requestParams.getOriginUrl())
+                    .gid(requestParams.getGid())
+                    .describe(requestParams.getDescribe())
+                    .validDateType(requestParams.getValidDateType())
+                    .validDate(
+                            !Objects.equals(requestParams.getValidDateType(), PERMANENT.getType()) ?
+                                    requestParams.getValidDate() : null
+                    )
+                    .createdType(requestParams.getCreatedType())
+                    .enableStatus(1)
+                    .delTime(0L)
+                    .favicon(requestParams.getFavicon()).build();
+
+            //这里不仅要插入短链接数据,还要插入跳转数据
+            ShortLinkGotoDO shortLinkGotoDO = ShortLinkGotoDO.builder()
+                    .fullShortUrl(domain + "/" + suffix)
+                    .gid(requestParams.getGid()).build();
+            try {
+                baseMapper.insert(shortLinkDO);
+                shortLinkGotoMapper.insert(shortLinkGotoDO);
+            } catch (DuplicateKeyException ex) {
+                throw new ServiceException(String.format("短链接%s重复", domain + "/" + suffix));
+            }
+            //缓存预热
+            stringRedisTemplate.opsForValue().set(
+                    String.format(SHORT_LINK_GOTO_KEY, domain + "/" + suffix),
+                    requestParams.getOriginUrl(),
+                    LinkUtil.getLinkCacheValidTime(requestParams.getValidDate()), TimeUnit.SECONDS
+            );
+            shortUriCreateBloomFilter.add(domain + "/" + suffix);
+        }finally {
+            lock.unlock();
+        }
         return ShortLinkCreateRespDTO.builder()
                 .fullShortUrl("http://" + domain + "/" + suffix)
                 .originUrl(requestParams.getOriginUrl())
@@ -485,18 +541,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             delayShortLinkStatsProducer.add(shortLinkStatsRecordDTO);
             return;
         }
-        try {
+        try{
             Map<String, String> map = new HashMap<>();
             map.put("fullShortUrl", fullShortUrl);
             map.put("gid", gid);
             map.put("shortLinkStatsRecordDTO", JSONObject.toJSONString(shortLinkStatsRecordDTO));
-            rabbitTemplate.convertAndSend(MQ_STATS_EXCHANGE,MQ_STATS_ROUTING_KEY,map);
-        } catch (Exception e) {
-            log.error("消息投递失败");
-        }
-        finally {
+            shortLinkSaveProducer.sendMessage(map);
+        }finally {
             rLock.unlock();
         }
+
     }
 
     private String generateSuffix(ShortLinkCreateReqDTO requestParams, String domain) {
@@ -509,6 +563,25 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             if (!shortUriCreateBloomFilter.contains(domain + "/" + suffix)) {
                 break;
             }
+            count++;
+        }
+        return suffix;
+    }
+
+    private String generateSuffixByLock(ShortLinkCreateReqDTO requestParams, String domain){
+        int count = 0;
+        String suffix;
+        while (true) {
+            if (count == 10) throw new ServiceException("短链接创建繁忙");
+            suffix = HashUtil.hashToBase62(requestParams.getOriginUrl() + System.currentTimeMillis());
+
+            LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
+                    .eq(ShortLinkDO::getGid, requestParams.getGid())
+                    .eq(ShortLinkDO::getFullShortUrl, requestParams.getDomain() + "/" + suffix)
+                    .eq(ShortLinkDO::getDelFlag, 0);
+            ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
+            if(shortLinkDO == null) break;
+
             count++;
         }
         return suffix;
